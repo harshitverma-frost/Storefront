@@ -1,12 +1,12 @@
 /**
  * Storefront API Client
- * Consumes existing backend at localhost:5000
+ * Consumes existing backend at https://ecommerce-backend-h23p.onrender.com
  * Backend response format: { success: boolean, message: string, data: T }
  */
 
 import { Product, ProductWithDetails, ApiResponse } from '@/types';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://ecommerce-backend-h23p.onrender.com';
 
 /* ─── Products ─── */
 
