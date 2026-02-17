@@ -9,7 +9,6 @@ import { Order, ShippingAddress } from '@/types';
 import { CheckCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
-import AgeVerificationModal from '@/components/AgeVerificationModal';
 
 export default function CheckoutPage() {
     const router = useRouter();
@@ -18,7 +17,7 @@ export default function CheckoutPage() {
     const [step, setStep] = useState(1); // 1: Address, 2: Payment, 3: Confirmation
     const [orderPlaced, setOrderPlaced] = useState(false);
     const [placing, setPlacing] = useState(false);
-    const [ageModalOpen, setAgeModalOpen] = useState(false);
+
     const [address, setAddress] = useState<ShippingAddress>({
         full_name: '',
         address_line: '',
@@ -48,10 +47,7 @@ export default function CheckoutPage() {
             return;
         }
 
-        if (user && !user.is_age_verified) {
-            setAgeModalOpen(true);
-            return;
-        }
+
 
         setPlacing(true);
 
@@ -286,14 +282,7 @@ export default function CheckoutPage() {
                 )}
             </div>
 
-            <AgeVerificationModal
-                isOpen={ageModalOpen}
-                onClose={() => setAgeModalOpen(false)}
-                onVerified={() => {
-                    setAgeModalOpen(false);
-                    handlePlaceOrder();
-                }}
-            />
+
         </div>
     );
 }

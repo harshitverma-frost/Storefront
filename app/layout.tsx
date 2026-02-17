@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { Playfair_Display, Inter } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import AgeVerificationModal from "@/components/AgeVerificationModal";
 import { CartProvider } from "@/context/CartContext";
 import { WishlistProvider } from "@/context/WishlistContext";
 import { AuthProvider } from "@/context/AuthContext";
@@ -52,12 +54,18 @@ export default function RootLayout({
                   },
                 }}
               />
+              <AgeVerificationModal />
               <Navbar />
               <main className="flex-1">{children}</main>
               <Footer />
             </WishlistProvider>
           </CartProvider>
         </AuthProvider>
+        {/* Cloudflare Turnstile CAPTCHA script */}
+        <Script
+          src="https://challenges.cloudflare.com/turnstile/v0/api.js"
+          strategy="afterInteractive"
+        />
       </body>
     </html>
   );

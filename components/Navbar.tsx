@@ -28,7 +28,7 @@ export default function Navbar() {
     };
 
     return (
-        <header className="sticky top-0 z-50 glass border-light-border">
+        <header className="sticky top-0 z-50 glass  border-light-border">
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                 <div className="flex h-16 items-center justify-between">
                     {/* Logo */}
@@ -42,7 +42,7 @@ export default function Navbar() {
                             <Link
                                 key={link.href}
                                 href={link.href}
-                                className="text-sm font-serif font-medium text-white hover:text-wine-gold transition-colors duration-200"
+                                className="text-sm font-serif font-medium text-charcoal hover:text-burgundy transition-colors duration-200"
                             >
                                 {link.label}
                             </Link>
@@ -54,14 +54,14 @@ export default function Navbar() {
                         {/* Search Toggle */}
                         <button
                             onClick={() => setSearchOpen(!searchOpen)}
-                            className="p-2 text-white hover:text-wine-gold transition-colors"
+                            className="p-2 text-charcoal hover:text-burgundy transition-colors"
                             aria-label="Search"
                         >
                             <Search className="h-5 w-5" />
                         </button>
 
                         {/* Wishlist */}
-                        <Link href="/account" className="relative p-2 text-white hover:text-wine-gold transition-colors">
+                        <Link href="/account" className="relative p-2 text-charcoal hover:text-burgundy transition-colors">
                             <Heart className="h-5 w-5" />
                             {wishlistCount > 0 && (
                                 <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-burgundy text-[10px] font-bold text-white">
@@ -71,7 +71,7 @@ export default function Navbar() {
                         </Link>
 
                         {/* Cart */}
-                        <Link href="/cart" className="relative p-2 text-white hover:text-wine-gold transition-colors">
+                        <Link href="/cart" className="relative p-2 text-charcoal hover:text-burgundy transition-colors">
                             <ShoppingCart className="h-5 w-5" />
                             {totalItems > 0 && (
                                 <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-burgundy text-[10px] font-bold text-white">
@@ -81,14 +81,14 @@ export default function Navbar() {
                         </Link>
 
                         {/* Account */}
-                        <Link href="/login" className="p-2 text-white hover:text-wine-gold transition-colors">
+                        <Link href="/login" className="p-2 text-charcoal hover:text-burgundy transition-colors">
                             <User className="h-5 w-5" />
                         </Link>
 
                         {/* Mobile menu toggle */}
                         <button
                             onClick={() => setMobileOpen(!mobileOpen)}
-                            className="p-2 text-white hover:text-wine-gold transition-colors md:hidden"
+                            className="p-2 text-charcoal hover:text-burgundy transition-colors md:hidden"
                             aria-label="Menu"
                         >
                             {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}

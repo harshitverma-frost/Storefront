@@ -1,10 +1,33 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
+
+// ⚠️ CHANGE the site key in .env.local → NEXT_PUBLIC_TURNSTILE_SITE_KEY
+const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || '';
+
+/** Extend Window to include the Turnstile API */
+declare global {
+    interface Window {
+        turnstile?: {
+            render: (
+                container: string | HTMLElement,
+                options: {
+                    sitekey: string;
+                    callback: (token: string) => void;
+                    'expired-callback'?: () => void;
+                    'error-callback'?: () => void;
+                    theme?: 'light' | 'dark' | 'auto';
+                }
+            ) => string;
+            remove: (widgetId: string) => void;
+            reset: (widgetId: string) => void;
+        };
+    }
+}
 
 export default function LoginPage() {
     const router = useRouter();
@@ -13,11 +36,57 @@ export default function LoginPage() {
     const [loading, setLoading] = useState(false);
     const [form, setForm] = useState({ name: '', email: '', password: '' });
 
+    // Turnstile CAPTCHA state
+    const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+    const turnstileWidgetId = useRef<string | null>(null);
+    const turnstileContainerRef = useRef<HTMLDivElement | null>(null);
+
     useEffect(() => {
         if (isAuthenticated) {
             router.push('/account');
         }
     }, [isAuthenticated, router]);
+
+    /** Render (or re-render) the Turnstile widget */
+    const renderTurnstile = useCallback(() => {
+        if (turnstileWidgetId.current && window.turnstile) {
+            try { window.turnstile.remove(turnstileWidgetId.current); } catch { /* already removed */ }
+            turnstileWidgetId.current = null;
+        }
+        setTurnstileToken(null);
+        if (!turnstileContainerRef.current || !window.turnstile) return;
+        turnstileContainerRef.current.innerHTML = '';
+
+        const widgetId = window.turnstile.render(turnstileContainerRef.current, {
+            sitekey: TURNSTILE_SITE_KEY,
+            callback: (token: string) => setTurnstileToken(token),
+            'expired-callback': () => setTurnstileToken(null),
+            'error-callback': () => setTurnstileToken(null),
+            theme: 'light',
+        });
+        turnstileWidgetId.current = widgetId;
+    }, []);
+
+    /** Initialize Turnstile once the script is loaded */
+    useEffect(() => {
+        const interval = setInterval(() => {
+            if (window.turnstile && turnstileContainerRef.current) {
+                clearInterval(interval);
+                renderTurnstile();
+            }
+        }, 300);
+        return () => {
+            clearInterval(interval);
+            if (turnstileWidgetId.current && window.turnstile) {
+                try { window.turnstile.remove(turnstileWidgetId.current); } catch { /* ignore */ }
+            }
+        };
+    }, [renderTurnstile]);
+
+    /** Re-render widget when toggling Login ↔ Register */
+    useEffect(() => {
+        if (window.turnstile && turnstileContainerRef.current) renderTurnstile();
+    }, [isRegister, renderTurnstile]);
 
     if (isAuthenticated) {
         return null;
@@ -25,8 +94,16 @@ export default function LoginPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        // Gate: prevent submission if CAPTCHA not completed
+        if (!turnstileToken) {
+            toast.error('Please complete the CAPTCHA verification');
+            return;
+        }
+
         setLoading(true);
 
+        // TODO: Pass turnstileToken to backend when backend supports it
         let result;
         if (isRegister) {
             result = await register(form.name, form.email, form.password);
@@ -41,6 +118,11 @@ export default function LoginPage() {
             router.push('/account');
         } else {
             toast.error(result.error || 'Something went wrong');
+            // Reset widget after failed attempt
+            if (turnstileWidgetId.current && window.turnstile) {
+                window.turnstile.reset(turnstileWidgetId.current);
+                setTurnstileToken(null);
+            }
         }
     };
 
@@ -95,6 +177,11 @@ export default function LoginPage() {
                             required
                             minLength={3}
                         />
+                    </div>
+
+                    {/* Cloudflare Turnstile CAPTCHA Widget */}
+                    <div className="mb-6 flex justify-center">
+                        <div ref={turnstileContainerRef} id="turnstile-container" />
                     </div>
 
                     <button
