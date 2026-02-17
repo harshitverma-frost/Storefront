@@ -34,6 +34,75 @@ export default function LoginPage() {
     const router = useRouter();
     const { login, register, isAuthenticated } = useAuth();
 
+    const [isRegister, setIsRegister] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [form, setForm] = useState({ name: '', email: '', password: '' });
+
+    // ── Turnstile state ──────────────────────────────────────────────
+    const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+    const turnstileContainerRef = useRef<HTMLDivElement>(null);
+    const turnstileWidgetId = useRef<string | null>(null);
+
+    /** Render (or re-render) the Turnstile widget */
+    const renderTurnstile = useCallback(() => {
+        // Remove previous widget if it exists
+        if (turnstileWidgetId.current !== null) {
+            try { window.turnstile?.remove(turnstileWidgetId.current); } catch { /* noop */ }
+            turnstileWidgetId.current = null;
+        }
+
+        if (!turnstileContainerRef.current || !window.turnstile) return;
+
+        const id = window.turnstile.render(turnstileContainerRef.current, {
+            sitekey: TURNSTILE_SITE_KEY,
+            callback: (token: string) => setTurnstileToken(token),
+            'expired-callback': () => setTurnstileToken(null),
+            'error-callback': () => setTurnstileToken(null),
+            theme: 'light',
+        });
+
+        turnstileWidgetId.current = id;
+    }, []);
+
+    // Render widget once the Turnstile script has loaded
+    useEffect(() => {
+        let attempts = 0;
+        const interval = setInterval(() => {
+            attempts++;
+            if (window.turnstile) {
+                clearInterval(interval);
+                renderTurnstile();
+            }
+            if (attempts > 50) clearInterval(interval); // give up after ~5 s
+        }, 100);
+
+        return () => {
+            clearInterval(interval);
+            if (turnstileWidgetId.current !== null) {
+                try { window.turnstile?.remove(turnstileWidgetId.current); } catch { /* noop */ }
+                turnstileWidgetId.current = null;
+            }
+        };
+    }, [renderTurnstile]);
+
+    // Re-render widget when toggling between login / register
+    useEffect(() => {
+        setTurnstileToken(null);
+        renderTurnstile();
+    }, [isRegister, renderTurnstile]);
+
+    // ── Auth redirect ────────────────────────────────────────────────
+    useEffect(() => {
+        if (isAuthenticated) {
+            router.push('/account');
+        }
+    }, [isAuthenticated, router]);
+
+    if (isAuthenticated) {
+        return null;
+    }
+
+    // ── Submit handler ───────────────────────────────────────────────
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
@@ -80,66 +149,6 @@ export default function LoginPage() {
             toast.error('Server error. Please try again.');
         } finally {
             setLoading(false);
-        }
-    };
-<<<<<<< HEAD
-        // TODO: Pass turnstileToken to backend when backend supports it
-        let result;
-        if (isRegister) {
-            result = await register(form.name, form.email, form.password);
-        } else {
-            result = await login(form.email, form.password);
-        }
-=======
-        try {
-            let result;
->>>>>>> 6887b03a6267f0202e6d46ccfe3eacd28574218a
-
-            if (isRegister) {
-                // Register user
-                result = await register(form.name, form.email, form.password);
-
-<<<<<<< HEAD
-        if (result.success) {
-            toast.success(isRegister ? 'Account created!' : 'Welcome back!');
-            router.push('/account');
-        } else {
-            toast.error(result.error || 'Something went wrong');
-            // Reset widget after failed attempt
-            if (turnstileWidgetId.current && window.turnstile) {
-                window.turnstile.reset(turnstileWidgetId.current);
-                setTurnstileToken(null);
-            }
-=======
-                // Create cart after successful registration
-                if (result?.success) {
-                    const customerId = result.customer?.customer_id;
-
-                    if (customerId) {
-                        await createCart(customerId);
-                        console.log("✅ Cart created for:", customerId);
-                    } else {
-                        console.warn("⚠️ customer_id missing from register response");
-                    }
-                }
-            } else {
-                // 🔹 Login user
-                result = await login(form.email, form.password);
-            }
-
-            if (result?.success) {
-                toast.success(isRegister ? 'Account created!' : 'Welcome back!');
-                router.push('/account');
-            } else {
-                toast.error(result?.error || 'Something went wrong');
-            }
-
-        } catch (error) {
-            console.error('Auth error:', error);
-            toast.error('Server error. Please try again.');
-        } finally {
-            setLoading(false);
->>>>>>> 6887b03a6267f0202e6d46ccfe3eacd28574218a
         }
     };
 
