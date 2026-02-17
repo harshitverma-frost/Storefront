@@ -145,6 +145,24 @@ export default function LoginPage() {
                         {isRegister
                             ? 'Already have an account?'
                             : "Don't have an account?"}{' '}
+ </div>
+
+                    <button
+                        type="submit"
+                        disabled={loading}
+                        className="w-full rounded-lg bg-burgundy py-3 text-sm font-semibold text-white transition-all hover:bg-burgundy-dark disabled:opacity-50"
+                    >
+                        {loading
+                            ? 'Please wait...'
+                            : isRegister
+                                ? 'Create Account'
+                                : 'Sign In'}
+                    </button>
+
+                    <p className="mt-4 text-center text-sm text-warm-gray">
+                        {isRegister
+                            ? 'Already have an account?'
+                            : "Don't have an account?"}{' '}
                         <button
                             type="button"
                             onClick={() => setIsRegister(!isRegister)}
