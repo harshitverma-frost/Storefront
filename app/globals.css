@@ -8,10 +8,9 @@
   --color-burgundy: #722F37;
   --color-burgundy-dark: #5A252C;
   --color-burgundy-light: #8B3A42;
-  --color-wine-gold: #c3a46a;
+  --color-wine-gold: #C9A96E;
   --color-wine-gold-light: #D4B87A;
-  --color-charcoal: #2f2b29;
-  --color-white: #ffffff;
+  --color-charcoal: #2D2926;
   --color-warm-gray: #6B6462;
   --color-light-border: #E8E2DA;
   --font-serif: 'Playfair Display', Georgia, 'Times New Roman', serif;
@@ -128,6 +127,67 @@ body {
   animation: shimmer 1.5s ease-in-out infinite;
 }
 
+/* Age verification modal animations */
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.88) translateY(16px);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes scaleOut {
+  from {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+
+  to {
+    opacity: 0;
+    transform: scale(0.92) translateY(-12px);
+  }
+}
+
+@keyframes overlayFadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes overlayFadeOut {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-scale-out {
+  animation: scaleOut 0.35s cubic-bezier(0.55, 0, 1, 0.45) forwards;
+}
+
+.animate-overlay-fade-in {
+  animation: overlayFadeIn 0.4s ease-out forwards;
+}
+
+.animate-overlay-fade-out {
+  animation: overlayFadeOut 0.35s ease-in forwards;
+}
+
 /* Line clamp */
 .line-clamp-2 {
   display: -webkit-box;
@@ -147,7 +207,7 @@ body {
 .glass {
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  background: #530f25;
+  background: rgba(250, 247, 242, 0.9);
 }
 
 /* Wine gradient */
