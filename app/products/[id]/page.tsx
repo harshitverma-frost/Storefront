@@ -123,7 +123,7 @@ export default function ProductDetailPage({ params }: Props) {
                             {images.length > 0 ? (
                                 <img src={images[activeImageIndex]} className="object-contain h-full w-full" />
                             ) : (
-                                <span className="text-8xl">🍷</span>
+                                <img src="/card-drink.webp" alt="" />
                             )}
                         </div>
                     </div>
@@ -140,7 +140,7 @@ export default function ProductDetailPage({ params }: Props) {
 
                         {/* PRICE */}
                         <p className="text-3xl font-bold text-burgundy">
-                            ₹{displayPrice}
+                            ${displayPrice}
                         </p>
 
                         {/* ✅ VARIANT SELECTOR */}
