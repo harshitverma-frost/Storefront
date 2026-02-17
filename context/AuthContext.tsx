@@ -3,12 +3,22 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { Order, ShippingAddress } from '@/types';
 
+interface RegisterResponse {
+    success: boolean;
+    customer?: {
+        customer_id: string;
+        full_name: string;
+        email: string;
+    };
+    error?: string;
+}
+
 interface AuthContextType {
     user: UserInfo | null;
     isAuthenticated: boolean;
     isLoading: boolean;
     login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-    register: (name: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+    register: (name: string, email: string, password: string) => Promise<RegisterResponse>;
     logout: () => void;
     verifyUserAge: (dateOfBirth: string) => Promise<{ success: boolean; error?: string }>;
     orders: Order[];
@@ -89,7 +99,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { success: false, error: 'Invalid credentials' };
     }, []);
 
-    const register = useCallback(async (name: string, email: string, password: string) => {
+
+    const register = useCallback(async (
+        name: string,
+        email: string,
+        password: string
+    ): Promise<RegisterResponse> => {
         try {
             const res = await fetch(`${API_URL}/api/auth/register`, {
                 method: 'POST',
@@ -99,10 +114,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             });
             const json = await res.json();
             if (res.ok && json.success && json.data?.customer) {
-                const u = toUserInfo(json.data.customer);
+                const customer = json.data.customer;
+
+                const u = toUserInfo(customer);
                 setUser(u);
                 localStorage.setItem(USER_KEY, JSON.stringify(u));
-                return { success: true };
+
+                return {
+                    success: true,
+                    customer: customer   // ✅ RETURN CUSTOMER
+                };
             }
             if (json.message) return { success: false, error: json.message };
         } catch { /* fallback to mock */ }
@@ -111,7 +132,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const mockUser: UserInfo = { id: `user-${Date.now()}`, name, email, is_age_verified: true };
             setUser(mockUser);
             localStorage.setItem(USER_KEY, JSON.stringify(mockUser));
-            return { success: true };
+            return {
+                success: true,
+                customer: {
+                    customer_id: mockUser.id,
+                    full_name: mockUser.name,
+                    email: mockUser.email
+                }
+            };
         }
         return { success: false, error: 'Please fill all fields correctly' };
     }, []);

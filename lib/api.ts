@@ -132,6 +132,7 @@ export async function changePassword(currentPassword: string, newPassword: strin
 /* ─── Cart ─── */
 
 export async function createCart(customerId?: string) {
+    console.log("cart created");
     const res = await fetch(`${API_URL}/api/cart`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -152,6 +153,7 @@ export async function getCart(params: { cart_id?: string; customer_id?: string }
 }
 
 export async function addCartItem(cartId: string, variantId: string, quantity: number) {
+    console.log("added to cart...");
     const res = await fetch(`${API_URL}/api/cart/items`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
