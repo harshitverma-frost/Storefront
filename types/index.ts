@@ -15,6 +15,7 @@ export interface Product {
     updated_at?: string;
     /* Extended fields (may not exist in all DB rows) */
     price?: number;
+     variant?: any;
     quantity?: number;
     images?: string[];
 }
