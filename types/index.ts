@@ -93,7 +93,9 @@ export interface ApiResponse<T = unknown> {
 }
 
 export interface CartItem {
+    item_id?: string; // Backend cart item ID
     product: Product;
+    variant_id?: string; // Backend variant ID
     quantity: number;
 }
 

@@ -83,9 +83,28 @@ export default function ProductDetailPage({ params }: Props) {
     const displayPrice = product.price ?? Math.floor(Math.random() * 500000 + 100000);
     const images = product.assets?.map(a => a.asset_url).filter(Boolean) || [];
 
-    const handleAddToCart = () => {
-        addItem(product, quantity);
-        toast.success(`Added ${quantity} × ${product.product_name} to cart!`);
+    const handleAddToCart = async () => {
+        try {
+            // Get variant_id from product - CRITICAL for backend
+            const variantId = product.variants?.[0]?.variant_id;
+            
+            console.log('[ProductPage] 📦 Product debug:', {
+                product_id: product.product_id,
+                product_name: product.product_name,
+                has_variants: !!product.variants,
+                variants_count: product.variants?.length || 0,
+                first_variant: product.variants?.[0],
+                resolved_variant_id: variantId,
+                will_fallback_to_product_id: !variantId,
+                quantity
+            });
+            
+            await addItem(product, quantity, variantId);
+            toast.success(`Added ${quantity} × ${product.product_name} to cart!`);
+        } catch (error) {
+            toast.error('Failed to add to cart');
+            console.error('[ProductPage] ❌ Add to cart error:', error);
+        }
     };
 
     return (

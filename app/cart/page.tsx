@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { useCart } from '@/context/CartContext';
 import { Minus, Plus, X, ShoppingCart, ArrowLeft } from 'lucide-react';
@@ -7,9 +8,33 @@ import toast from 'react-hot-toast';
 
 export default function CartPage() {
     const { items, updateQuantity, removeItem, totalPrice, totalItems } = useCart();
+    const [updating, setUpdating] = useState<string | null>(null);
 
     const shippingCost = totalPrice > 50 ? 0 : 5;
     const grandTotal = totalPrice + shippingCost;
+
+    const handleUpdateQuantity = async (productId: string, newQuantity: number) => {
+        setUpdating(productId);
+        try {
+            await updateQuantity(productId, newQuantity);
+        } catch (error) {
+            toast.error('Failed to update quantity');
+        } finally {
+            setUpdating(null);
+        }
+    };
+
+    const handleRemoveItem = async (productId: string) => {
+        setUpdating(productId);
+        try {
+            await removeItem(productId);
+            toast.success('Removed from cart');
+        } catch (error) {
+            toast.error('Failed to remove item');
+        } finally {
+            setUpdating(null);
+        }
+    };
 
     if (items.length === 0) {
         return (
@@ -82,15 +107,17 @@ export default function CartPage() {
                                     {/* Quantity */}
                                     <div className="flex items-center rounded-lg border border-light-border">
                                         <button
-                                            onClick={() => updateQuantity(item.product.product_id, item.quantity - 1)}
-                                            className="px-2.5 py-1.5 text-warm-gray hover:text-charcoal"
+                                            onClick={() => handleUpdateQuantity(item.product.product_id, item.quantity - 1)}
+                                            disabled={updating === item.product.product_id}
+                                            className="px-2.5 py-1.5 text-warm-gray hover:text-charcoal disabled:opacity-50"
                                         >
                                             <Minus className="h-3 w-3" />
                                         </button>
                                         <span className="w-8 text-center text-sm font-medium text-charcoal">{item.quantity}</span>
                                         <button
-                                            onClick={() => updateQuantity(item.product.product_id, item.quantity + 1)}
-                                            className="px-2.5 py-1.5 text-warm-gray hover:text-charcoal"
+                                            onClick={() => handleUpdateQuantity(item.product.product_id, item.quantity + 1)}
+                                            disabled={updating === item.product.product_id}
+                                            className="px-2.5 py-1.5 text-warm-gray hover:text-charcoal disabled:opacity-50"
                                         >
                                             <Plus className="h-3 w-3" />
                                         </button>
@@ -98,8 +125,9 @@ export default function CartPage() {
 
                                     {/* Remove */}
                                     <button
-                                        onClick={() => { removeItem(item.product.product_id); toast.success('Removed from cart'); }}
-                                        className="p-2 text-warm-gray hover:text-red-500 transition-colors"
+                                        onClick={() => handleRemoveItem(item.product.product_id)}
+                                        disabled={updating === item.product.product_id}
+                                        className="p-2 text-warm-gray hover:text-red-500 transition-colors disabled:opacity-50"
                                     >
                                         <X className="h-4 w-4" />
                                     </button>

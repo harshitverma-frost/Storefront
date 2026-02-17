@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
-import { directCheckout } from '@/lib/api';
+import { directCheckout, addAddress as apiAddAddress, checkoutOrder } from '@/lib/api';
 import { Order, ShippingAddress } from '@/types';
 import { CheckCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -13,7 +13,7 @@ import AgeVerificationModal from '@/components/AgeVerificationModal';
 
 export default function CheckoutPage() {
     const router = useRouter();
-    const { items, totalPrice, clearCart } = useCart();
+    const { items, totalPrice, clearCart, cartId } = useCart();
     const { user, isAuthenticated, addOrder, addAddress } = useAuth();
     const [step, setStep] = useState(1); // 1: Address, 2: Payment, 3: Confirmation
     const [orderPlaced, setOrderPlaced] = useState(false);
@@ -54,29 +54,125 @@ export default function CheckoutPage() {
         }
 
         setPlacing(true);
+        console.log('[Checkout] Starting order placement...');
+        console.log('[Checkout] Cart ID:', cartId);
+        console.log('[Checkout] Customer ID:', user?.id);
+        console.log('[Checkout] Items:', items.length);
 
-        // Build items array for backend API
-        const orderItems = items.map(item => ({
-            product_id: item.product.product_id,
-            quantity: item.quantity,
-            unit_price: item.product.price || 0,
-        }));
+        let savedAddressId: string | undefined;
 
-        // Try backend direct checkout first
+        // Step 1: Save shipping address to backend if user is logged in
+        if (user?.id) {
+            try {
+                console.log('[Checkout] Saving address for customer:', user.id);
+                const addressResult = await apiAddAddress(user.id, {
+                    address_line1: address.address_line,
+                    city: address.city,
+                    state: address.state,
+                    pincode: address.zip_code,
+                    country: address.country,
+                    phone: address.phone,
+                    is_default: true,
+                });
+                console.log('[Checkout] Address save response:', addressResult);
+                
+                if (addressResult.success && addressResult.data?.address_id) {
+                    savedAddressId = addressResult.data.address_id;
+                    console.log('[Checkout] ✅ Address saved:', savedAddressId);
+                }
+            } catch (error) {
+                console.error('[Checkout] ❌ Failed to save address:', error);
+            }
+        }
+
+        // Step 2: Try CART-BASED CHECKOUT first (if we have cart_id and customer_id)
+        if (cartId && !cartId.startsWith('temp-') && user?.id) {
+            try {
+                console.log('[Checkout] Attempting cart-based checkout...');
+                console.log('[Checkout] Payload:', {
+                    cart_id: cartId,
+                    customer_id: user.id,
+                    shipping_address_id: savedAddressId,
+                    payment_method: 'cod'
+                });
+
+                const result = await checkoutOrder({
+                    cart_id: cartId,
+                    customer_id: user.id,
+                    shipping_address_id: savedAddressId,
+                    payment_method: 'cod'
+                });
+                
+                console.log('[Checkout] Cart-based checkout response:', result);
+
+                if (result.success && result.data?.order_id) {
+                    console.log('[Checkout] ✅ Order created via cart checkout:', result.data.order_id);
+                    
+                    const order: Order = {
+                        id: result.data.order_id,
+                        items: [...items],
+                        total: grandTotal,
+                        status: 'confirmed',
+                        shipping_address: address,
+                        created_at: new Date().toISOString(),
+                    };
+                    addOrder(order);
+                    addAddress(address);
+                    clearCart();
+                    setOrderPlaced(true);
+                    setStep(3);
+                    toast.success('Order placed successfully!');
+                    setPlacing(false);
+                    return;
+                } else {
+                    console.warn('[Checkout] ⚠️ Cart checkout unsuccessful:', result.message);
+                }
+            } catch (error) {
+                console.error('[Checkout] ❌ Cart-based checkout failed:', error);
+            }
+        } else {
+            console.log('[Checkout] Skipping cart-based checkout (no valid cart_id or customer_id)');
+        }
+
+        // Step 3: Try DIRECT CHECKOUT as fallback
         try {
-            const result = await directCheckout({
-                customer_id: user?.id || undefined,
-                customer_name: user?.name || address.full_name,
-                customer_email: user?.email || undefined,
-                items: orderItems,
-                shipping_address: address as unknown as Record<string, string>,
-                payment_method: 'cod',
-            });
+            console.log('[Checkout] Attempting direct checkout...');
+            
+            // Build items array - DON'T include variant_id if backend doesn't expect it
+            const orderItems = items.map(item => ({
+                product_id: item.product.product_id,
+                quantity: item.quantity,
+                unit_price: item.product.price || 0,
+            }));
 
-            if (result.success) {
-                // Also save to localStorage for account page
+            const shippingAddress = {
+                address_line1: address.address_line,
+                city: address.city,
+                state: address.state,
+                pincode: address.zip_code,
+                country: address.country,
+                phone: address.phone,
+            };
+
+            const payload = {
+                customer_id: user?.id,
+                customer_name: user?.name || address.full_name,
+                customer_email: user?.email,
+                items: orderItems,
+                shipping_address: shippingAddress,
+                payment_method: 'cod' as const,
+            };
+
+            console.log('[Checkout] Direct checkout payload:', JSON.stringify(payload, null, 2));
+
+            const result = await directCheckout(payload);
+            console.log('[Checkout] Direct checkout response:', result);
+
+            if (result.success && result.data?.order_id) {
+                console.log('[Checkout] ✅ Order created via direct checkout:', result.data.order_id);
+                
                 const order: Order = {
-                    id: result.data?.order_id || `ORD-${Date.now()}`,
+                    id: result.data.order_id,
                     items: [...items],
                     total: grandTotal,
                     status: 'confirmed',
@@ -91,29 +187,19 @@ export default function CheckoutPage() {
                 toast.success('Order placed successfully!');
                 setPlacing(false);
                 return;
+            } else {
+                console.error('[Checkout] ❌ Direct checkout returned unsuccessful:', result);
+                toast.error(result.message || 'Failed to place order. Please try again.');
+                setPlacing(false);
+                return;
             }
-        } catch (error) {
-            console.error('Direct checkout failed:', error);
-            /* Backend unavailable — fall through to localStorage-only */
+        } catch (error: any) {
+            console.error('[Checkout] ❌ Direct checkout failed:', error);
+            const errorMsg = error?.message || 'Failed to place order';
+            toast.error(`Failed to place order: ${errorMsg}`);
+            setPlacing(false);
+            return;
         }
-
-        // Fallback: localStorage-only order
-        const order: Order = {
-            id: `ORD-${Date.now()}`,
-            items: [...items],
-            total: grandTotal,
-            status: 'confirmed',
-            shipping_address: address,
-            created_at: new Date().toISOString(),
-        };
-
-        addOrder(order);
-        addAddress(address);
-        clearCart();
-        setOrderPlaced(true);
-        setStep(3);
-        toast.success('Order placed successfully!');
-        setPlacing(false);
     };
 
     // Order Confirmation
