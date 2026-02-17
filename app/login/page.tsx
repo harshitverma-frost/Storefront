@@ -145,24 +145,6 @@ export default function LoginPage() {
                         {isRegister
                             ? 'Already have an account?'
                             : "Don't have an account?"}{' '}
- </div>
-
-                    <button
-                        type="submit"
-                        disabled={loading}
-                        className="w-full rounded-lg bg-burgundy py-3 text-sm font-semibold text-white transition-all hover:bg-burgundy-dark disabled:opacity-50"
-                    >
-                        {loading
-                            ? 'Please wait...'
-                            : isRegister
-                                ? 'Create Account'
-                                : 'Sign In'}
-                    </button>
-
-                    <p className="mt-4 text-center text-sm text-warm-gray">
-                        {isRegister
-                            ? 'Already have an account?'
-                            : "Don't have an account?"}{' '}
                         <button
                             type="button"
                             onClick={() => setIsRegister(!isRegister)}
@@ -172,7 +154,6 @@ export default function LoginPage() {
                         </button>
                     </p>
                 </form>
-
                 <p className="mt-6 text-center text-xs text-warm-gray">
                     By continuing, you agree to KSP Wines&apos; Terms of Service and Privacy Policy.
                 </p>
