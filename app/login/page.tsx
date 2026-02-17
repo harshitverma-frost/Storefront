@@ -1,11 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { createCart } from '@/lib/api'; // ✅ import cart API
+
+const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? 'YOUR_SITE_KEY';
 
 export default function LoginPage() {
     const router = useRouter();
@@ -15,6 +17,62 @@ export default function LoginPage() {
     const [loading, setLoading] = useState(false);
     const [form, setForm] = useState({ name: '', email: '', password: '' });
 
+    // ── Turnstile state ──────────────────────────────────────────────
+    const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+    const turnstileRef = useRef<HTMLDivElement>(null);
+    const widgetIdRef = useRef<string | null>(null);
+
+    /** Render (or re-render) the Turnstile widget */
+    const renderTurnstile = useCallback(() => {
+        // Remove previous widget if it exists
+        if (widgetIdRef.current !== null) {
+            try { window.turnstile?.remove(widgetIdRef.current); } catch { /* noop */ }
+            widgetIdRef.current = null;
+        }
+
+        if (!turnstileRef.current || !window.turnstile) return;
+
+        const id = window.turnstile.render(turnstileRef.current, {
+            sitekey: TURNSTILE_SITE_KEY,
+            callback: (token: string) => setTurnstileToken(token),
+            'expired-callback': () => setTurnstileToken(null),
+            'error-callback': () => setTurnstileToken(null),
+            theme: 'light',
+        });
+
+        widgetIdRef.current = id;
+    }, []);
+
+    // Render widget once the Turnstile script has loaded
+    useEffect(() => {
+        // The script may already be loaded or may still be loading.
+        // Poll briefly until `window.turnstile` is available.
+        let attempts = 0;
+        const interval = setInterval(() => {
+            attempts++;
+            if (window.turnstile) {
+                clearInterval(interval);
+                renderTurnstile();
+            }
+            if (attempts > 50) clearInterval(interval); // give up after ~5 s
+        }, 100);
+
+        return () => {
+            clearInterval(interval);
+            if (widgetIdRef.current !== null) {
+                try { window.turnstile?.remove(widgetIdRef.current); } catch { /* noop */ }
+                widgetIdRef.current = null;
+            }
+        };
+    }, [renderTurnstile]);
+
+    // Re-render widget when toggling between login / register
+    useEffect(() => {
+        setTurnstileToken(null);
+        renderTurnstile();
+    }, [isRegister, renderTurnstile]);
+
+    // ── Auth redirect ────────────────────────────────────────────────
     useEffect(() => {
         if (isAuthenticated) {
             router.push('/account');
@@ -25,8 +83,16 @@ export default function LoginPage() {
         return null;
     }
 
+    // ── Submit handler ───────────────────────────────────────────────
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        // Gate on Turnstile token
+        if (!turnstileToken) {
+            toast.error('Please complete the CAPTCHA verification.');
+            return;
+        }
+
         setLoading(true);
 
         try {
@@ -64,6 +130,9 @@ export default function LoginPage() {
             toast.error('Server error. Please try again.');
         } finally {
             setLoading(false);
+            // Reset Turnstile widget so the user must re-verify on retry
+            setTurnstileToken(null);
+            renderTurnstile();
         }
     };
 
@@ -128,6 +197,9 @@ export default function LoginPage() {
                             minLength={3}
                         />
                     </div>
+
+                    {/* ── Cloudflare Turnstile CAPTCHA ── */}
+                    <div ref={turnstileRef} className="mb-4" />
 
                     <button
                         type="submit"
