@@ -3,6 +3,7 @@ import { Playfair_Display, Inter } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import AgeVerificationModal from "@/components/AgeVerificationModal";
 import { CartProvider } from "@/context/CartContext";
 import { WishlistProvider } from "@/context/WishlistContext";
 import { AuthProvider } from "@/context/AuthContext";
@@ -52,6 +53,7 @@ export default function RootLayout({
                   },
                 }}
               />
+              <AgeVerificationModal />
               <Navbar />
               <main className="flex-1">{children}</main>
               <Footer />

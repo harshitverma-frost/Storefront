@@ -27,7 +27,7 @@ export default function HomePage() {
           className="absolute inset-0 bg-cover bg-center"
           style={{
             backgroundImage: `linear-gradient(to bottom, rgba(45,41,38,0.5), rgba(45,41,38,0.7)), 
-              url('https://images.unsplash.com/photo-1506377247377-2a5b3b417ebb?w=1920&q=80')`,
+              url('/abc.jpg')`,
           }}
         />
         <div className="relative mx-auto max-w-7xl px-4 py-28 sm:py-36 lg:py-44 text-center">
@@ -65,7 +65,7 @@ export default function HomePage() {
       <section className="py-20 px-4">
         <div className="mx-auto max-w-7xl">
           <div className="text-center mb-12">
-            <h2 className="font-serif text-3xl sm:text-4xl font-bold text-charcoal">
+            <h2 className="font-serif text-3xl sm:text-4xl font-bold text-wine-gold">
               Featured Collections
             </h2>
             <p className="mt-3 text-warm-gray">Discover our finest curated collections</p>
@@ -105,7 +105,7 @@ export default function HomePage() {
           <div className="grid grid-cols-1 gap-12 lg:grid-cols-2 items-center">
             <div>
               <p className="text-sm uppercase tracking-[0.2em] text-wine-gold font-medium mb-3">Our Heritage</p>
-              <h2 className="font-serif text-3xl sm:text-4xl font-bold text-charcoal leading-tight">
+              <h2 className="font-serif text-3xl sm:text-4xl font-bold text-wine-gold leading-tight">
                 Our Story
               </h2>
               <p className="mt-6 text-warm-gray leading-relaxed">
@@ -126,13 +126,12 @@ export default function HomePage() {
               </Link>
             </div>
             <div className="relative">
-              <div className="aspect-[4/3] rounded-2xl bg-gradient-to-br from-cream-dark to-cream overflow-hidden border border-light-border">
+              <div className="rounded-2xl bg-gradient-to-br from-cream-dark to-cream overflow-hidden border border-light-border">
                 <div className="flex h-full items-center justify-center">
-                  <div className="text-center p-8">
-                    <span className="text-8xl block mb-4">🍇</span>
-                    <p className="font-serif text-2xl text-charcoal font-semibold">KSP Wines</p>
-                    <p className="text-sm text-warm-gray mt-1">Since 2015</p>
+                  <div className="relative flex justify-center py-0 px-0">
+                    <img src="/Our-story.webp" alt="Our Story" className="w-full max-w-5xl rounded-2xl shadow-lg object-contain transition duration-300 ease-in-out hover:scale-[1.02] hover:shadow-2xl" />
                   </div>
+
                 </div>
               </div>
             </div>
@@ -145,7 +144,7 @@ export default function HomePage() {
         <div className="mx-auto max-w-7xl">
           <div className="flex items-end justify-between mb-12">
             <div>
-              <h2 className="font-serif text-3xl sm:text-4xl font-bold text-charcoal">
+              <h2 className="font-serif text-3xl sm:text-4xl font-bold text-wine-gold">
                 Best Sellers
               </h2>
               <p className="mt-2 text-warm-gray">Our most popular wines, loved by customers</p>
@@ -185,7 +184,7 @@ export default function HomePage() {
       {/* ─── AWARDS & CERTIFICATIONS ─── */}
       <section className="py-20 px-4 bg-white">
         <div className="mx-auto max-w-7xl text-center">
-          <h2 className="font-serif text-3xl sm:text-4xl font-bold text-charcoal">
+          <h2 className="font-serif text-3xl sm:text-4xl font-bold text-wine-gold">
             Awards & Certifications
           </h2>
           <p className="mt-3 text-warm-gray">Recognition of our commitment to quality</p>
@@ -212,7 +211,7 @@ export default function HomePage() {
       {/* ─── TESTIMONIALS ─── */}
       <section className="py-20 px-4">
         <div className="mx-auto max-w-7xl">
-          <h2 className="font-serif text-3xl sm:text-4xl font-bold text-charcoal text-center">
+          <h2 className="font-serif text-3xl sm:text-4xl font-bold text-wine-gold text-center">
             What Our Customers Say
           </h2>
           <p className="mt-3 text-warm-gray text-center">Hear from wine lovers who trust KSP Wines</p>
