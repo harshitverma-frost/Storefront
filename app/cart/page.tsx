@@ -87,7 +87,7 @@ export default function CartPage() {
                                     className="flex items-center gap-4 rounded-xl border border-light-border bg-white p-4 sm:p-6 transition-all hover:shadow-sm"
                                 >
                                     {/* Image */}
-                                    <div className="h-20 w-20 sm:h-24 sm:w-24 flex-shrink-0 rounded-lg bg-cream-dark flex items-center justify-center">
+                                    <div className="h-20 w-20 sm:h-24 sm:w-24 shrink-0 rounded-lg bg-cream-dark flex items-center justify-center">
                                         <span className="text-4xl">🍷</span>
                                     </div>
 
@@ -146,7 +146,7 @@ export default function CartPage() {
                                     const price = item.product.price ?? 350000;
                                     return (
                                         <div key={item.product.product_id} className="flex items-start gap-3">
-                                            <div className="h-12 w-12 flex-shrink-0 rounded-lg bg-cream-dark flex items-center justify-center">
+                                            <div className="h-12 w-12 shrink-0 rounded-lg bg-cream-dark flex items-center justify-center">
                                                 <span className="text-lg">🍷</span>
                                             </div>
                                             <div className="flex-1 min-w-0">

@@ -55,7 +55,7 @@ export async function getProducts(params?: {
         if (params?.category) searchParams.set('category', params.category);
 
         const url = `${API_URL}/api/products${searchParams.toString() ? '?' + searchParams.toString() : ''}`;
-        const json: ApiResponse<Product[]> = await apiFetch('getProducts', url);
+        const json = await apiFetch('getProducts', url) as ApiResponse<Product[]>;
         return json.success && json.data ? json.data : [];
     } catch {
         return [];
@@ -65,7 +65,7 @@ export async function getProducts(params?: {
 export async function getProduct(id: string): Promise<Product | null> {
     try {
         const url = `${API_URL}/api/products/${id}`;
-        const json: ApiResponse<Product> = await apiFetch('getProduct', url);
+        const json = await apiFetch('getProduct', url) as ApiResponse<Product>;
         return json.success && json.data ? json.data : null;
     } catch {
         return null;
@@ -75,7 +75,7 @@ export async function getProduct(id: string): Promise<Product | null> {
 export async function getProductDetails(id: string): Promise<ProductWithDetails | null> {
     try {
         const url = `${API_URL}/api/products/${id}/details`;
-        const json: ApiResponse<ProductWithDetails> = await apiFetch('getProductDetails', url);
+        const json = await apiFetch('getProductDetails', url) as ApiResponse<ProductWithDetails>;
         return json.success && json.data ? json.data : null;
     } catch {
         return null;
@@ -85,7 +85,7 @@ export async function getProductDetails(id: string): Promise<ProductWithDetails 
 export async function searchProducts(query: string): Promise<Product[]> {
     try {
         const url = `${API_URL}/api/products/search?q=${encodeURIComponent(query)}`;
-        const json: ApiResponse<Product[]> = await apiFetch('searchProducts', url);
+        const json = await apiFetch('searchProducts', url) as ApiResponse<Product[]>;
         return json.success && json.data ? json.data : [];
     } catch {
         return [];
@@ -354,7 +354,7 @@ export async function clearWishlist() {
 
 export async function getCategories(tree?: boolean) {
     const qs = tree ? '?tree=true' : '';
-    const json: ApiResponse = await apiFetch('getCategories', `${API_URL}/api/categories${qs}`);
+    const json = await apiFetch('getCategories', `${API_URL}/api/categories${qs}`) as ApiResponse;
     return json.success && json.data ? json.data : [];
 }
 
@@ -363,7 +363,7 @@ export async function getCategoryProducts(categoryId: string, params?: { limit?:
     if (params?.limit) searchParams.set('limit', String(params.limit));
     if (params?.offset) searchParams.set('offset', String(params.offset));
     const qs = searchParams.toString();
-    const json: ApiResponse<Product[]> = await apiFetch('getCategoryProducts', `${API_URL}/api/categories/${categoryId}/products${qs ? '?' + qs : ''}`);
+    const json = await apiFetch('getCategoryProducts', `${API_URL}/api/categories/${categoryId}/products${qs ? '?' + qs : ''}`) as ApiResponse<Product[]>;
     return json.success && json.data ? json.data : [];
 }
 

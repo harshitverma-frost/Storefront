@@ -73,7 +73,7 @@ export default function CheckoutPage() {
                     country: address.country,
                     phone: address.phone,
                     is_default: true,
-                });
+                }) as any;
                 console.log('[Checkout] Address save response:', addressResult);
                 
                 if (addressResult.success && addressResult.data?.address_id) {
@@ -101,7 +101,7 @@ export default function CheckoutPage() {
                     customer_id: user.id,
                     shipping_address_id: savedAddressId,
                     payment_method: 'cod'
-                });
+                }) as any;
                 
                 console.log('[Checkout] Cart-based checkout response:', result);
 
@@ -165,7 +165,7 @@ export default function CheckoutPage() {
 
             console.log('[Checkout] Direct checkout payload:', JSON.stringify(payload, null, 2));
 
-            const result = await directCheckout(payload);
+            const result = await directCheckout(payload) as any;
             console.log('[Checkout] Direct checkout response:', result);
 
             if (result.success && result.data?.order_id) {

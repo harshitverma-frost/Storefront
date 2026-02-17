@@ -66,7 +66,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     const fetchCartFromBackend = useCallback(async (id: string) => {
         console.log('[Cart] 🔄 Fetching cart from backend:', id);
         try {
-            const result = await getCart({ cart_id: id });
+            const result = await getCart({ cart_id: id }) as any;
             if (result.success && result.data) {
                 const cartData = result.data;
                 // Handle both formats: data could be the cart itself or data.cart
@@ -122,7 +122,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         if (cartId && !cartId.startsWith('temp-')) {
             console.log('[Cart] Verifying existing cart_id:', cartId);
             try {
-                const result = await getCart({ cart_id: cartId });
+                const result = await getCart({ cart_id: cartId }) as any;
                 if (result.success && result.data) {
                     console.log('[Cart] ✅ Cart verified on backend');
                     return cartId;
@@ -146,7 +146,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
                 const customerId = userStr ? JSON.parse(userStr).id : undefined;
                 
                 console.log('[Cart] Creating new backend cart for customer:', customerId || '(guest)');
-                const result = await createCart(customerId);
+                const result = await createCart(customerId) as any;
                 
                 if (result.success && result.data?.cart_id) {
                     const newCartId = result.data.cart_id;
@@ -203,7 +203,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
                     quantity 
                 });
                 
-                const result = await apiAddCartItem(currentCartId, params, quantity);
+                const result = await apiAddCartItem(currentCartId, params, quantity) as any;
                 
                 if (result.success) {
                     console.log('[Cart] ✅ Item added to backend');
