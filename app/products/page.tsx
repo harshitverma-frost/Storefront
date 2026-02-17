@@ -79,14 +79,14 @@ function ProductsContent() {
             {/* Header */}
             <div className="border-b border-light-border bg-white px-4 py-6">
                 <div className="mx-auto max-w-7xl">
-                    <h1 className="font-serif text-3xl font-bold text-charcoal">Shop Wines</h1>
+                    <h1 className="font-serif text-3xl font-bold text-wine-gold">Shop Wines</h1>
                     <p className="mt-1 text-sm text-warm-gray">
                         Showing {paginatedProducts.length} of {filtered.length} products
                     </p>
                 </div>
             </div>
 
-            <div className="mx-auto max-w-7xl px-4 py-8">
+            <div className="mx-auto max-w-[1400px] px-6 py-8">
                 <div className="lg:grid lg:grid-cols-[280px_1fr] lg:gap-8">
                     {/* Mobile filter toggle */}
                     <button
@@ -98,58 +98,84 @@ function ProductsContent() {
                     </button>
 
                     {/* Sidebar Filters */}
-                    <aside className={`${showFilters ? 'block' : 'hidden'} lg:block space-y-6 mb-6 lg:mb-0`}>
-                        {/* Search */}
-                        <div className="rounded-xl border border-light-border bg-white p-5">
-                            <div className="relative">
-                                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-warm-gray" />
+                    <aside className={`${showFilters ? 'block' : 'hidden'} lg:block w-full lg:w-72`}>
+                        <div className="border border-neutral-200 bg-white shadow-sm px-5 py-5 space-y-6">
+
+                            {/* SEARCH */}
+                            <div>
+                                <label className="block text-xs tracking-widest text-neutral-500 mb-2">
+                                    SEARCH
+                                </label>
+
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
+                                    <input
+                                        type="text"
+                                        value={searchQuery}
+                                        onChange={e => setSearchQuery(e.target.value)}
+                                        placeholder="Search wines"
+                                        className="w-full border border-neutral-200 bg-neutral-50 py-2.5 pl-10 pr-3 text-sm focus:outline-none focus:border-[#6b0f1a] focus:bg-white transition"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* divider */}
+                            <div className="border-t border-neutral-200"></div>
+
+                            {/* PRICE RANGE */}
+                            <div>
+                                <h3 className="text-xs tracking-widest text-neutral-500 mb-3">
+                                    PRICE RANGE
+                                </h3>
+
                                 <input
-                                    type="text"
-                                    value={searchQuery}
-                                    onChange={e => setSearchQuery(e.target.value)}
-                                    placeholder="Search wines..."
-                                    className="w-full rounded-lg border border-light-border bg-cream/50 py-2.5 pl-10 pr-4 text-sm focus:border-burgundy focus:outline-none"
+                                    type="range"
+                                    min="0"
+                                    max="1000000"
+                                    step="10000"
+                                    value={priceRange[1]}
+                                    onChange={e =>
+                                        setPriceRange([priceRange[0], parseInt(e.target.value)])
+                                    }
+                                    className="w-full accent-[#6b0f1a]"
                                 />
-                            </div>
-                        </div>
 
-                        {/* Wine Type */}
-                        <div className="rounded-xl border border-light-border bg-white p-5">
-                            <h3 className="font-serif text-sm font-semibold text-charcoal mb-3">Wine Type</h3>
-                            <div className="space-y-2">
-                                {wineTypes.map(type => (
-                                    <label key={type} className="flex items-center gap-2 cursor-pointer group">
-                                        <input
-                                            type="radio"
-                                            name="wineType"
-                                            checked={selectedType === type}
-                                            onChange={() => setSelectedType(type)}
-                                            className="h-4 w-4 accent-burgundy"
-                                        />
-                                        <span className="text-sm text-warm-gray group-hover:text-charcoal transition-colors">
-                                            {type}
-                                        </span>
-                                    </label>
-                                ))}
+                                <div className="mt-2 flex justify-between text-xs text-neutral-500">
+                                    <span>₹{priceRange[0].toLocaleString()}</span>
+                                    <span>₹{priceRange[1].toLocaleString()}</span>
+                                </div>
                             </div>
-                        </div>
 
-                        {/* Price Range */}
-                        <div className="rounded-xl border border-light-border bg-white p-5">
-                            <h3 className="font-serif text-sm font-semibold text-charcoal mb-3">Price Range</h3>
-                            <input
-                                type="range"
-                                min="0"
-                                max="1000000"
-                                step="10000"
-                                value={priceRange[1]}
-                                onChange={e => setPriceRange([priceRange[0], parseInt(e.target.value)])}
-                                className="w-full accent-burgundy"
-                            />
-                            <div className="mt-2 flex justify-between text-xs text-warm-gray">
-                                <span>${priceRange[0].toLocaleString('en-US')}</span>
-                                <span>${priceRange[1].toLocaleString('en-US')}</span>
+                            {/* divider */}
+                            <div className="border-t border-neutral-200"></div>
+
+                            {/* WINE TYPE */}
+                            <div>
+                                <h3 className="text-xs tracking-widest text-neutral-500 mb-3">
+                                    WINE TYPE
+                                </h3>
+
+                                <div className="space-y-2">
+                                    {wineTypes.map(type => (
+                                        <label
+                                            key={type}
+                                            className="flex items-center gap-2 cursor-pointer group"
+                                        >
+                                            <input
+                                                type="radio"
+                                                name="wineType"
+                                                checked={selectedType === type}
+                                                onChange={() => setSelectedType(type)}
+                                                className="h-4 w-4 accent-[#6b0f1a]"
+                                            />
+                                            <span className="text-sm text-neutral-600 group-hover:text-neutral-900 transition">
+                                                {type}
+                                            </span>
+                                        </label>
+                                    ))}
+                                </div>
                             </div>
+
                         </div>
                     </aside>
 
@@ -172,7 +198,7 @@ function ProductsContent() {
                             <SkeletonProductGrid count={9} />
                         ) : paginatedProducts.length > 0 ? (
                             <>
-                                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                                     {paginatedProducts.map(product => (
                                         <ProductCard key={product.product_id} product={product} />
                                     ))}

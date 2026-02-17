@@ -8,9 +8,10 @@
   --color-burgundy: #722F37;
   --color-burgundy-dark: #5A252C;
   --color-burgundy-light: #8B3A42;
-  --color-wine-gold: #C9A96E;
+  --color-wine-gold: #c3a46a;
   --color-wine-gold-light: #D4B87A;
-  --color-charcoal: #2D2926;
+  --color-charcoal: #2f2b29;
+  --color-white: #ffffff;
   --color-warm-gray: #6B6462;
   --color-light-border: #E8E2DA;
   --font-serif: 'Playfair Display', Georgia, 'Times New Roman', serif;
@@ -146,7 +147,7 @@ body {
 .glass {
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  background: rgba(250, 247, 242, 0.9);
+  background: #530f25;
 }
 
 /* Wine gradient */

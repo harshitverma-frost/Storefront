@@ -9,10 +9,7 @@ export default function Footer() {
                     {/* Brand */}
                     <div>
                         <Link href="/" className="flex items-center gap-2">
-                            <span className="text-2xl">🍷</span>
-                            <span className="font-serif text-lg font-bold text-burgundy">
-                                KSP <span className="text-warm-gray">— WINES</span>
-                            </span>
+                            <img src="/KSP-Wines-logo.webp" alt="KSP Wines" className="h-8 w-auto" />
                         </Link>
                         <p className="mt-3 text-sm text-warm-gray leading-relaxed">
                             Experience the unique terroir of Vietnam,<br />
@@ -20,7 +17,7 @@ export default function Footer() {
                         </p>
                         <div className="mt-4 flex gap-3">
                             {[Facebook, Instagram, Twitter, Youtube].map((Icon, i) => (
-                                <a key={i} href="#" className="text-warm-gray hover:text-burgundy transition-colors">
+                                <a key={i} href="#" className="text-wine-gold hover:text-burgundy transition-colors">
                                     <Icon className="h-4 w-4" />
                                 </a>
                             ))}
@@ -29,7 +26,7 @@ export default function Footer() {
 
                     {/* Shop */}
                     <div>
-                        <h4 className="font-serif text-sm font-semibold text-charcoal mb-4">Shop</h4>
+                        <h4 className="font-serif text-sm font-semibold text-wine-gold mb-4">Shop</h4>
                         <ul className="space-y-2">
                             {['Red Wines', 'White Wines', 'Limited Editions'].map(item => (
                                 <li key={item}>
@@ -43,7 +40,7 @@ export default function Footer() {
 
                     {/* Company */}
                     <div>
-                        <h4 className="font-serif text-sm font-semibold text-charcoal mb-4">Company</h4>
+                        <h4 className="font-serif text-sm font-semibold text-wine-gold mb-4">Company</h4>
                         <ul className="space-y-2">
                             {[
                                 { label: 'Our Story', href: '/about' },
@@ -61,7 +58,7 @@ export default function Footer() {
 
                     {/* Support */}
                     <div>
-                        <h4 className="font-serif text-sm font-semibold text-charcoal mb-4">Support</h4>
+                        <h4 className="font-serif text-sm font-semibold text-wine-gold mb-4">Support</h4>
                         <ul className="space-y-2">
                             {[
                                 { label: 'FAQs', href: '/contact' },
