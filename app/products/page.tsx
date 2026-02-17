@@ -141,8 +141,8 @@ function ProductsContent() {
                                 />
 
                                 <div className="mt-2 flex justify-between text-xs text-neutral-500">
-                                    <span>₹{priceRange[0].toLocaleString()}</span>
-                                    <span>₹{priceRange[1].toLocaleString()}</span>
+                                    <span>₹{priceRange[0].toLocaleString('en-IN')}</span>
+                                    <span>₹{priceRange[1].toLocaleString('en-IN')}</span>
                                 </div>
                             </div>
 
