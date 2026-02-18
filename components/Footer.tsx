@@ -9,7 +9,7 @@ export default function Footer() {
                     {/* Brand */}
                     <div>
                         <Link href="/" className="flex items-center gap-2">
-                            <img src="/KSP-Wines-logo.webp" alt="KSP Wines" className="h-8 w-auto" />
+                            <img src="/KSP-Wines-logo.webp" alt="KSP Wines" className="h-40 w-auto" />
                         </Link>
                         <p className="mt-3 text-sm text-warm-gray leading-relaxed">
                             Experience the unique terroir of Vietnam,<br />

@@ -33,7 +33,7 @@ export default function Navbar() {
                 <div className="flex h-16 items-center justify-between">
                     {/* Logo */}
                     <Link href="/" className="flex items-center gap-2">
-                        <img src="/KSP-Wines-logo.webp" alt="KSP Wines" className="h-8 w-auto" />
+                        <img src="/KSP-Wines-logo.webp" alt="KSP Wines" className="h-40 w-auto" />
                     </Link>
 
                     {/* Desktop Nav */}
