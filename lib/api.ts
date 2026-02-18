@@ -14,12 +14,18 @@ export async function getProducts(params?: {
     limit?: number;
     offset?: number;
     category?: string;
+    brand?: string;
+    sort?: string;
+    status?: string;
 }): Promise<Product[]> {
     try {
         const searchParams = new URLSearchParams();
         if (params?.limit) searchParams.set('limit', String(params.limit));
         if (params?.offset) searchParams.set('offset', String(params.offset));
         if (params?.category) searchParams.set('category', params.category);
+        if (params?.brand) searchParams.set('brand', params.brand);
+        if (params?.sort) searchParams.set('sort', params.sort);
+        if (params?.status) searchParams.set('status', params.status);
 
         const url = `${API_URL}/api/products${searchParams.toString() ? '?' + searchParams.toString() : ''}`;
         const res = await fetch(url);
@@ -28,6 +34,24 @@ export async function getProducts(params?: {
     } catch (error) {
         console.error('[API] Failed to fetch products:', error);
         return [];
+    }
+}
+
+/** Fetch all products once and extract unique brands & countries for filter options */
+export async function getFilterOptions(): Promise<{ brands: string[]; countries: string[] }> {
+    try {
+        const products = await getProducts({ limit: 500 });
+        const brandSet = new Set<string>();
+        const countrySet = new Set<string>();
+        products.forEach(p => {
+            if (p.brand) brandSet.add(p.brand);
+        });
+        return {
+            brands: Array.from(brandSet).sort(),
+            countries: Array.from(countrySet).sort(),
+        };
+    } catch {
+        return { brands: [], countries: [] };
     }
 }
 
