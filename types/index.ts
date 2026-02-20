@@ -22,6 +22,28 @@ export interface Product {
     images?: string[];
 }
 
+/** Shape returned by GET /api/products/filter */
+export interface FilteredProduct extends Product {
+    alcohol_percentage?: number;
+    country_of_origin?: string;
+    avg_rating?: number;
+    review_count?: number;
+    total_stock?: number;
+    thumbnail_url?: string;
+}
+
+export interface FilterMeta {
+    total_count: number;
+    page: number;
+    limit: number;
+    total_pages: number;
+    has_next_page: boolean;
+    has_prev_page: boolean;
+    filters_applied: Record<string, unknown>;
+    sort: string;
+    cache_hit: boolean;
+}
+
 export interface ProductWithDetails extends Product {
     specifications?: ProductSpecification | null;
     packaging?: ProductPackaging | null;
@@ -95,6 +117,30 @@ export interface ApiResponse<T = unknown> {
     data?: T;
 }
 
+/* ─── Cart (Backend-matching) ─── */
+
+export interface BackendCartItem {
+    cart_item_id: string;
+    cart_id: string;
+    variant_id?: string;
+    product_id?: string;
+    quantity: number;
+    product_name?: string;
+    price?: number;
+    size_label?: string;
+    sku?: string;
+    image_url?: string;
+}
+
+export interface BackendCart {
+    cart_id: string;
+    customer_id?: string;
+    items: BackendCartItem[];
+    total_amount: number;
+    total_items: number;
+}
+
+/** Legacy CartItem shape — kept for backward compat on ProductCard */
 export interface CartItem {
     product: Product;
     quantity: number;
@@ -105,22 +151,44 @@ export interface WishlistItem {
     product: Product;
 }
 
-/* Mock order type for frontend since backend doesn't have orders API */
+/* ─── Orders (Backend-matching) ─── */
+
 export interface Order {
-    id: string;
-    items: CartItem[];
-    total: number;
-    status: 'pending' | 'confirmed' | 'shipped' | 'delivered';
-    shipping_address: ShippingAddress;
+    order_id: string;
+    customer_id?: string;
+    customer_name?: string;
+    customer_email?: string;
+    total_amount: number;
+    total_tax?: number;
+    order_status: string;
+    payment_status: string;
+    payment_method?: string;
+    order_notes?: string;
+    items?: OrderItem[];
     created_at: string;
 }
 
-export interface ShippingAddress {
-    full_name: string;
-    address_line: string;
+export interface OrderItem {
+    order_item_id: string;
+    product_id?: string;
+    variant_id?: string;
+    quantity: number;
+    unit_price: number;
+    product_name?: string;
+}
+
+/* ─── Address (Backend-matching) ─── */
+
+export interface Address {
+    address_id: string;
+    customer_id: string;
+    address_line1: string;
+    address_line2?: string;
     city: string;
     state: string;
-    zip_code: string;
-    country: string;
-    phone: string;
+    pincode: string;
+    country?: string;
+    phone?: string;
+    is_default?: boolean;
+    label?: string;
 }

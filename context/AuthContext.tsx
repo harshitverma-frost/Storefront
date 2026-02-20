@@ -1,7 +1,20 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { Order, ShippingAddress } from '@/types';
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
+
+interface AuthContextType {
+    user: UserInfo | null;
+    isAuthenticated: boolean;
+    isLoading: boolean;
+    login: (email: string, password: string) => Promise<{ success: boolean; error?: string; code?: string }>;
+    register: (name: string, email: string, password: string) => Promise<RegisterResponse>;
+    logout: () => void;
+    verifyUserAge: (dateOfBirth: string) => Promise<{ success: boolean; error?: string }>;
+    /** Register callbacks that run after login/logout so Cart + Wishlist can react */
+    onAuthChange: (cb: AuthChangeCallback) => () => void;
+}
+
+type AuthChangeCallback = (event: 'login' | 'logout', user: UserInfo | null) => void;
 
 interface RegisterResponse {
     success: boolean;
@@ -11,20 +24,6 @@ interface RegisterResponse {
         email: string;
     };
     error?: string;
-}
-
-interface AuthContextType {
-    user: UserInfo | null;
-    isAuthenticated: boolean;
-    isLoading: boolean;
-    login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-    register: (name: string, email: string, password: string) => Promise<RegisterResponse>;
-    logout: () => void;
-    verifyUserAge: (dateOfBirth: string) => Promise<{ success: boolean; error?: string }>;
-    orders: Order[];
-    addOrder: (order: Order) => void;
-    addresses: ShippingAddress[];
-    addAddress: (address: ShippingAddress) => void;
 }
 
 interface UserInfo {
@@ -37,8 +36,6 @@ interface UserInfo {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://ecommerce-backend-h23p.onrender.com';
 const USER_KEY = 'ksp_wines_user';
-const ORDERS_KEY = 'ksp_wines_orders';
-const ADDRESSES_KEY = 'ksp_wines_addresses';
 
 /** Map backend customer shape → frontend UserInfo */
 function toUserInfo(customer: Record<string, unknown>): UserInfo {
@@ -53,19 +50,39 @@ function toUserInfo(customer: Record<string, unknown>): UserInfo {
 export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<UserInfo | null>(null);
     const [isLoading, setIsLoading] = useState(true);
-    const [orders, setOrders] = useState<Order[]>([]);
-    const [addresses, setAddresses] = useState<ShippingAddress[]>([]);
+    const listenersRef = useRef<Set<AuthChangeCallback>>(new Set());
 
+    /** Subscribe to auth events — returns unsubscribe function */
+    const onAuthChange = useCallback((cb: AuthChangeCallback) => {
+        listenersRef.current.add(cb);
+        return () => { listenersRef.current.delete(cb); };
+    }, []);
+
+    const notifyListeners = useCallback((event: 'login' | 'logout', u: UserInfo | null) => {
+        listenersRef.current.forEach(cb => cb(event, u));
+    }, []);
+
+    // On mount: try to restore session from localStorage cache
     useEffect(() => {
-        if (typeof window !== 'undefined') {
-            const stored = localStorage.getItem(USER_KEY);
-            if (stored) setUser(JSON.parse(stored));
-            const storedOrders = localStorage.getItem(ORDERS_KEY);
-            if (storedOrders) setOrders(JSON.parse(storedOrders));
-            const storedAddresses = localStorage.getItem(ADDRESSES_KEY);
-            if (storedAddresses) setAddresses(JSON.parse(storedAddresses));
+        if (typeof window === 'undefined') {
+            setIsLoading(false);
+            return;
+        }
+
+        const stored = localStorage.getItem(USER_KEY);
+        if (stored) {
+            try {
+                const cachedUser: UserInfo = JSON.parse(stored);
+                setUser(cachedUser);
+                // Notify listeners (Cart/Wishlist) about restored session
+                // Use setTimeout to ensure listeners are registered first
+                setTimeout(() => notifyListeners('login', cachedUser), 0);
+            } catch {
+                localStorage.removeItem(USER_KEY);
+            }
         }
         setIsLoading(false);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const login = useCallback(async (email: string, password: string) => {
@@ -81,24 +98,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 const u = toUserInfo(json.data.customer);
                 setUser(u);
                 localStorage.setItem(USER_KEY, JSON.stringify(u));
+                notifyListeners('login', u);
                 return { success: true };
             }
-            // Return backend error message if available
-            if (json.message) return { success: false, error: json.message };
-        } catch {
-            /* Backend not available, fall through to mock */
+            if (json.message) return { success: false, error: json.message, code: json.code };
+        } catch (err) {
+            console.error('[Auth] Login error:', err);
         }
 
-        // Mock login fallback
-        if (password.length >= 3) {
-            const mockUser: UserInfo = { id: `user-${Date.now()}`, name: email.split('@')[0], email, is_age_verified: true };
-            setUser(mockUser);
-            localStorage.setItem(USER_KEY, JSON.stringify(mockUser));
-            return { success: true };
-        }
-        return { success: false, error: 'Invalid credentials' };
-    }, []);
-
+        return { success: false, error: 'Login failed. Please check your credentials.' };
+    }, [notifyListeners]);
 
     const register = useCallback(async (
         name: string,
@@ -115,41 +124,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const json = await res.json();
             if (res.ok && json.success && json.data?.customer) {
                 const customer = json.data.customer;
-
                 const u = toUserInfo(customer);
                 setUser(u);
                 localStorage.setItem(USER_KEY, JSON.stringify(u));
-
-                return {
-                    success: true,
-                    customer: customer   // ✅ RETURN CUSTOMER
-                };
+                notifyListeners('login', u);
+                return { success: true, customer };
             }
             if (json.message) return { success: false, error: json.message };
-        } catch { /* fallback to mock */ }
-
-        if (name && email && password.length >= 3) {
-            const mockUser: UserInfo = { id: `user-${Date.now()}`, name, email, is_age_verified: true };
-            setUser(mockUser);
-            localStorage.setItem(USER_KEY, JSON.stringify(mockUser));
-            return {
-                success: true,
-                customer: {
-                    customer_id: mockUser.id,
-                    full_name: mockUser.name,
-                    email: mockUser.email
-                }
-            };
+        } catch (err) {
+            console.error('[Auth] Register error:', err);
         }
-        return { success: false, error: 'Please fill all fields correctly' };
-    }, []);
+
+        return { success: false, error: 'Registration failed. Please try again.' };
+    }, [notifyListeners]);
 
     const logout = useCallback(() => {
-        // Call backend logout to clear HttpOnly cookies
         fetch(`${API_URL}/api/auth/logout`, { method: 'POST', credentials: 'include' }).catch(() => { });
         setUser(null);
         localStorage.removeItem(USER_KEY);
-    }, []);
+        notifyListeners('logout', null);
+    }, [notifyListeners]);
 
     const verifyUserAge = useCallback(async (dateOfBirth: string) => {
         if (!user?.id) return { success: false, error: "User not logged in" };
@@ -167,31 +161,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 return { success: true };
             }
             return { success: false, error: json.message || "Verification failed" };
-        } catch (err) {
+        } catch {
             return { success: false, error: "Network error during verification" };
         }
     }, [user]);
 
-    const addOrder = useCallback((order: Order) => {
-        setOrders(prev => {
-            const updated = [order, ...prev];
-            localStorage.setItem(ORDERS_KEY, JSON.stringify(updated));
-            return updated;
-        });
-    }, []);
-
-    const addAddress = useCallback((address: ShippingAddress) => {
-        setAddresses(prev => {
-            const updated = [...prev, address];
-            localStorage.setItem(ADDRESSES_KEY, JSON.stringify(updated));
-            return updated;
-        });
-    }, []);
-
     return (
         <AuthContext.Provider value={{
-            user, isAuthenticated: !!user, isLoading, login, register, logout, verifyUserAge,
-            orders, addOrder, addresses, addAddress,
+            user, isAuthenticated: !!user, isLoading,
+            login, register, logout, verifyUserAge, onAuthChange,
         }}>
             {children}
         </AuthContext.Provider>

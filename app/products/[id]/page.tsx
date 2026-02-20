@@ -94,7 +94,8 @@ export default function ProductDetailPage({ params }: Props) {
         if (!product) return;
 
         addItem(
-            { ...product, variant: selectedVariant },
+            product.product_id,
+            selectedVariant?.variant_id || null,
             quantity
         );
 

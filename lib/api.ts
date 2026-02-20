@@ -4,9 +4,9 @@
  * Backend response format: { success: boolean, message: string, data: T }
  */
 
-import { Product, ProductWithDetails, ApiResponse } from '@/types';
+import { Product, FilteredProduct, FilterMeta, ProductWithDetails, ApiResponse } from '@/types';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://ecommerce-backend-h23p.onrender.com';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
 /* ─── Products ─── */
 
@@ -37,44 +37,67 @@ export async function getProducts(params?: {
     }
 }
 
-export async function getFilteredProducts(params?: {
+/* ─── Filtered Products (backend-powered) ─── */
+
+export interface FilterParams {
+    page?: number;
+    limit?: number;
+    sort?: string;
+    min_price?: number;
+    max_price?: number;
     min_abv?: number;
     max_abv?: number;
-    country?: string;
-    brand?: string;
+    country?: string;      // comma-separated
+    min_rating?: number;
+    availability?: string;  // 'in_stock' | 'out_of_stock' | 'all'
     category?: string;
-    sort?: string;
-    limit?: number;
-    offset?: number;
-}): Promise<Product[]> {
-    try {
-        const searchParams = new URLSearchParams();
-        if (params?.min_abv !== undefined) searchParams.set('min_abv', String(params.min_abv));
-        if (params?.max_abv !== undefined) searchParams.set('max_abv', String(params.max_abv));
-        if (params?.country) searchParams.set('country', params.country);
-        if (params?.brand) searchParams.set('brand', params.brand);
-        if (params?.category) searchParams.set('category', params.category);
-        if (params?.sort) searchParams.set('sort', params.sort);
-        if (params?.limit) searchParams.set('limit', String(params.limit));
-        if (params?.offset) searchParams.set('offset', String(params.offset));
+    brand?: string;
+}
 
-        const url = `${API_URL}/api/products/filter${searchParams.toString() ? '?' + searchParams.toString() : ''}`;
+export async function getFilteredProducts(
+    params: FilterParams = {}
+): Promise<{ data: FilteredProduct[]; meta: FilterMeta }> {
+    try {
+        const sp = new URLSearchParams();
+        if (params.page) sp.set('page', String(params.page));
+        if (params.limit) sp.set('limit', String(params.limit));
+        if (params.sort) sp.set('sort', params.sort);
+        if (params.min_price != null) sp.set('min_price', String(params.min_price));
+        if (params.max_price != null) sp.set('max_price', String(params.max_price));
+        if (params.min_abv != null) sp.set('min_abv', String(params.min_abv));
+        if (params.max_abv != null) sp.set('max_abv', String(params.max_abv));
+        if (params.country) sp.set('country', params.country);
+        if (params.min_rating != null) sp.set('min_rating', String(params.min_rating));
+        if (params.availability) sp.set('availability', params.availability);
+        if (params.category) sp.set('category', params.category);
+        if (params.brand) sp.set('brand', params.brand);
+
+        const qs = sp.toString();
+        const url = `${API_URL}/api/products/filter${qs ? '?' + qs : ''}`;
         const res = await fetch(url);
-        const json: ApiResponse<Product[]> = await res.json();
-        return json.success && json.data ? json.data : [];
+        const json = await res.json();
+
+        if (json.success) {
+            return {
+                data: json.data ?? [],
+                meta: json.meta ?? { total_count: 0, page: 1, limit: 20, total_pages: 0, has_next_page: false, has_prev_page: false, filters_applied: {}, sort: 'newest', cache_hit: false },
+            };
+        }
+        return { data: [], meta: { total_count: 0, page: 1, limit: 20, total_pages: 0, has_next_page: false, has_prev_page: false, filters_applied: {}, sort: 'newest', cache_hit: false } };
     } catch (error) {
         console.error('[API] Failed to fetch filtered products:', error);
-        return [];
+        return { data: [], meta: { total_count: 0, page: 1, limit: 20, total_pages: 0, has_next_page: false, has_prev_page: false, filters_applied: {}, sort: 'newest', cache_hit: false } };
     }
 }
 
 /** Fetch all products once and extract unique brands & countries for filter options */
 export async function getFilterOptions(): Promise<{ brands: string[]; countries: string[] }> {
     try {
-        const products = await getProducts({ limit: 500 });
+        // Use the filter endpoint with a large limit to get all products with their country_of_origin
+        const { data: products } = await getFilteredProducts({ limit: 500 });
         const brandSet = new Set<string>();
         const countrySet = new Set<string>();
-        products.forEach(p => {
+        products.forEach((p: FilteredProduct) => {
             if (p.brand) brandSet.add(p.brand);
             if (p.country_of_origin) countrySet.add(p.country_of_origin);
         });
@@ -185,6 +208,26 @@ export async function changePassword(currentPassword: string, newPassword: strin
     return res.json();
 }
 
+export async function deactivateAccount(password: string) {
+    const res = await fetch(`${API_URL}/api/auth/deactivate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ password }),
+    });
+    return res.json();
+}
+
+export async function reactivateAccount(email: string, password: string) {
+    const res = await fetch(`${API_URL}/api/auth/reactivate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email, password }),
+    });
+    return res.json();
+}
+
 /* ─── Cart ─── */
 
 export async function createCart(customerId?: string) {
@@ -208,13 +251,19 @@ export async function getCart(params: { cart_id?: string; customer_id?: string }
     return res.json();
 }
 
-export async function addCartItem(cartId: string, variantId: string, quantity: number) {
-    console.log("added to cart...");
+export async function addCartItem(cartId: string, itemId: string, quantity: number, isVariant = true) {
+    const body: Record<string, unknown> = { cart_id: cartId, quantity };
+    // Backend accepts either variant_id or product_id
+    if (isVariant) {
+        body.variant_id = itemId;
+    } else {
+        body.product_id = itemId;
+    }
     const res = await fetch(`${API_URL}/api/cart/items`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ cart_id: cartId, variant_id: variantId, quantity }),
+        body: JSON.stringify(body),
     });
     return res.json();
 }
@@ -299,6 +348,31 @@ export async function updateCustomerProfile(id: string, data: Record<string, unk
 export async function verifyAge(customerId: string) {
     const res = await fetch(`${API_URL}/api/customers/${customerId}/verify-age`, {
         method: 'POST',
+        credentials: 'include',
+    });
+    return res.json();
+}
+
+export async function uploadProfileImage(customerId: string, base64Image: string) {
+    const res = await fetch(`${API_URL}/api/customers/${customerId}/profile-image`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ image: base64Image }),
+    });
+    return res.json();
+}
+
+export async function getProfileImage(customerId: string) {
+    const res = await fetch(`${API_URL}/api/customers/${customerId}/profile-image`, {
+        credentials: 'include',
+    });
+    return res.json();
+}
+
+export async function removeProfileImage(customerId: string) {
+    const res = await fetch(`${API_URL}/api/customers/${customerId}/profile-image`, {
+        method: 'DELETE',
         credentials: 'include',
     });
     return res.json();
@@ -427,10 +501,10 @@ export async function clearWishlist() {
 
 /* ─── Categories ─── */
 
-export async function getCategories(tree?: boolean) {
+export async function getCategories(tree?: boolean): Promise<any[]> {
     const qs = tree ? '?tree=true' : '';
     const res = await fetch(`${API_URL}/api/categories${qs}`);
-    const json: ApiResponse = await res.json();
+    const json: ApiResponse<any[]> = await res.json();
     return json.success && json.data ? json.data : [];
 }
 

@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect, Suspense, useCallback, useMemo } from 'react';
+import { useState, useEffect, Suspense, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { getProducts, getFilterOptions, getFilteredProducts, searchProducts as apiSearch } from '@/lib/api';
-import { Product } from '@/types';
+import { getFilteredProducts, getFilterOptions, searchProducts as apiSearch } from '@/lib/api';
+import { FilteredProduct, FilterMeta } from '@/types';
 import ProductCard from '@/components/ProductCard';
 import { SkeletonProductGrid } from '@/components/Skeleton';
 import { SlidersHorizontal, Search, ChevronLeft, ChevronRight, X, Wine } from 'lucide-react';
@@ -42,7 +42,8 @@ function ProductsContent() {
     const searchParams = useSearchParams();
     const currentPage = Number(searchParams.get('page') || '1');
 
-    const [allProducts, setAllProducts] = useState<Product[]>([]);
+    const [products, setProducts] = useState<FilteredProduct[]>([]);
+    const [meta, setMeta] = useState<FilterMeta | null>(null);
     const [loading, setLoading] = useState(true);
     const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -70,117 +71,72 @@ function ProductsContent() {
         });
     }, []);
 
-    // Fetch products when backend-relevant filters change
+    // Fetch products from backend filter endpoint whenever filters change
     useEffect(() => {
         const fetchProducts = async () => {
             setLoading(true);
-            let data: Product[];
-            if (filters.search) {
-                data = await apiSearch(filters.search);
-            } else {
-                // Check if any filter API params are active
-                const alcConfig = FILTER_CONFIGS.find(f => f.key === 'alcohol');
-                const aMin = alcConfig?.min ?? 0;
-                const aMax = alcConfig?.max ?? 60;
-                const hasAlcoholFilter = filters.alcoholRange[0] !== aMin || filters.alcoholRange[1] !== aMax;
-                const hasCountryFilter = !!filters.country;
 
-                if (hasAlcoholFilter || hasCountryFilter) {
-                    data = await getFilteredProducts({
-                        min_abv: hasAlcoholFilter ? filters.alcoholRange[0] : undefined,
-                        max_abv: hasAlcoholFilter ? filters.alcoholRange[1] : undefined,
-                        country: filters.country || undefined,
-                        category: filters.category || undefined,
-                        brand: filters.brands.length === 1 ? filters.brands[0] : undefined,
-                        sort: filters.sort || undefined,
-                        limit: 200,
-                    });
-                } else {
-                    data = await getProducts({
-                        limit: 200,
-                        category: filters.category || undefined,
-                        brand: filters.brands.length === 1 ? filters.brands[0] : undefined,
-                        sort: filters.sort || undefined,
-                    });
-                }
+            if (filters.search) {
+                // Search uses a separate endpoint
+                const data = await apiSearch(filters.search);
+                setProducts(data as FilteredProduct[]);
+                setMeta(null);
+                setLoading(false);
+                return;
             }
-            setAllProducts(data);
+
+            // Build filter params for GET /api/products/filter
+            const priceConfig = FILTER_CONFIGS.find(f => f.key === 'price');
+            const alcConfig = FILTER_CONFIGS.find(f => f.key === 'alcohol');
+
+            const params: Record<string, unknown> = {
+                page: currentPage,
+                limit: ITEMS_PER_PAGE,
+            };
+
+            // Sort
+            if (filters.sort) params.sort = filters.sort;
+
+            // Category
+            if (filters.category) params.category = filters.category;
+
+            // Brand (comma-separated list → backend takes single brand ILIKE)
+            if (filters.brands.length === 1) params.brand = filters.brands[0];
+
+            // Price range
+            const pMin = priceConfig?.min ?? 0;
+            const pMax = priceConfig?.max ?? 500;
+            if (filters.priceRange[0] !== pMin) params.min_price = filters.priceRange[0];
+            if (filters.priceRange[1] !== pMax) params.max_price = filters.priceRange[1];
+
+            // Alcohol % range
+            const aMin = alcConfig?.min ?? 0;
+            const aMax = alcConfig?.max ?? 60;
+            if (filters.alcoholRange[0] !== aMin) params.min_abv = filters.alcoholRange[0];
+            if (filters.alcoholRange[1] !== aMax) params.max_abv = filters.alcoholRange[1];
+
+            // Country
+            if (filters.country) params.country = filters.country;
+
+            // Rating — extract numeric value from strings like '4★ & above'
+            if (filters.ratings.length > 0) {
+                const ratingValues = filters.ratings.map(r => parseInt(r)).filter(n => !isNaN(n));
+                if (ratingValues.length > 0) params.min_rating = Math.min(...ratingValues);
+            }
+
+            // Availability
+            if (filters.inStock) params.availability = 'in_stock';
+
+            const result = await getFilteredProducts(params as any);
+            setProducts(result.data);
+            setMeta(result.meta);
             setLoading(false);
         };
         fetchProducts();
-    }, [filters.search, filters.category, filters.brands, filters.sort, filters.alcoholRange, filters.country]);
+    }, [filters, currentPage]);
 
-    // Client-side filtering for params the backend doesn't support
-    const filtered = useMemo(() => {
-        let result = [...allProducts];
-
-        // Multi-brand filter (client-side if > 1 brand selected)
-        if (filters.brands.length > 1) {
-            result = result.filter(p =>
-                p.brand && filters.brands.some(b => p.brand!.toLowerCase().includes(b.toLowerCase()))
-            );
-        }
-
-        // Price range
-        const priceConfig = FILTER_CONFIGS.find(f => f.key === 'price');
-        const pMin = priceConfig?.min ?? 0;
-        const pMax = priceConfig?.max ?? 500;
-        if (filters.priceRange[0] !== pMin || filters.priceRange[1] !== pMax) {
-            result = result.filter(p => {
-                const price = p.price ?? 0;
-                return price >= filters.priceRange[0] && price <= filters.priceRange[1];
-            });
-        }
-
-        // Alcohol % range
-        const alcConfig = FILTER_CONFIGS.find(f => f.key === 'alcohol');
-        const aMin = alcConfig?.min ?? 0;
-        const aMax = alcConfig?.max ?? 60;
-        if (filters.alcoholRange[0] !== aMin || filters.alcoholRange[1] !== aMax) {
-            result = result.filter(p => {
-                const abv = p.alcohol_percentage ?? 0;
-                return abv >= filters.alcoholRange[0] && abv <= filters.alcoholRange[1];
-            });
-        }
-
-        // In Stock toggle
-        if (filters.inStock) {
-            result = result.filter(p => (p.quantity ?? 0) > 0);
-        }
-
-        // Country of Origin (single-select)
-        if (filters.country) {
-            result = result.filter(p =>
-                p.country_of_origin &&
-                p.country_of_origin.toLowerCase() === filters.country.toLowerCase()
-            );
-        }
-
-        // New Arrivals — show products created in last 30 days
-        if (filters.newArrivals) {
-            const thirtyDaysAgo = new Date();
-            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-            result = result.filter(p => {
-                if (!p.created_at) return false;
-                return new Date(p.created_at) >= thirtyDaysAgo;
-            });
-        }
-
-        // Client-side sorting for alcohol
-        if (filters.sort === 'alcohol_asc') {
-            result.sort((a, b) => (a.alcohol_percentage ?? 0) - (b.alcohol_percentage ?? 0));
-        } else if (filters.sort === 'alcohol_desc') {
-            result.sort((a, b) => (b.alcohol_percentage ?? 0) - (a.alcohol_percentage ?? 0));
-        }
-
-        return result;
-    }, [allProducts, filters]);
-
-    const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
-    const paginatedProducts = filtered.slice(
-        (currentPage - 1) * ITEMS_PER_PAGE,
-        currentPage * ITEMS_PER_PAGE
-    );
+    const totalCount = meta?.total_count ?? products.length;
+    const totalPages = meta?.total_pages ?? Math.ceil(products.length / ITEMS_PER_PAGE);
 
     // Close mobile drawer on escape
     useEffect(() => {
@@ -343,7 +299,7 @@ function ProductsContent() {
                         <div className="sticky top-6 rounded-xl border border-light-border bg-white px-5 py-4 shadow-sm">
                             <h2 className="font-serif text-base font-semibold text-charcoal mb-1">Filters</h2>
                             <p className="text-xs text-warm-gray mb-4">
-                                {filtered.length} wine{filtered.length !== 1 ? 's' : ''} found
+                                {totalCount} wine{totalCount !== 1 ? 's' : ''} found
                             </p>
                             {sidebarContent}
                         </div>
@@ -380,8 +336,8 @@ function ProductsContent() {
                         {/* Sort bar + Active chips */}
                         <div className="mb-2 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                             <p className="text-sm text-warm-gray">
-                                Showing <span className="font-semibold text-charcoal">{paginatedProducts.length}</span> of{' '}
-                                <span className="font-semibold text-charcoal">{filtered.length}</span> wines
+                                Showing <span className="font-semibold text-charcoal">{products.length}</span> of{' '}
+                                <span className="font-semibold text-charcoal">{totalCount}</span> wines
                             </p>
                             <SortDropdown
                                 value={filters.sort}
@@ -398,10 +354,10 @@ function ProductsContent() {
 
                         {loading ? (
                             <SkeletonProductGrid count={12} />
-                        ) : paginatedProducts.length > 0 ? (
+                        ) : products.length > 0 ? (
                             <>
                                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                                    {paginatedProducts.map((product, i) => (
+                                    {products.map((product, i) => (
                                         <div
                                             key={product.product_id}
                                             className="animate-fade-in-up"

@@ -2,14 +2,44 @@
 
 import Link from 'next/link';
 import { useCart } from '@/context/CartContext';
-import { Minus, Plus, X, ShoppingCart, ArrowLeft } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { Minus, Plus, X, ShoppingCart, ArrowLeft, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function CartPage() {
-    const { items, updateQuantity, removeItem, totalPrice, totalItems } = useCart();
+    const { items, updateQuantity, removeItem, totalPrice, totalItems, loading, error } = useCart();
+    const { isAuthenticated } = useAuth();
 
     const shippingCost = totalPrice > 50 ? 0 : 5;
     const grandTotal = totalPrice + shippingCost;
+
+    // Not logged in — show login prompt
+    if (!isAuthenticated) {
+        return (
+            <div className="min-h-screen bg-cream flex items-center justify-center">
+                <div className="text-center">
+                    <ShoppingCart className="mx-auto h-16 w-16 text-warm-gray/40 mb-4" />
+                    <h1 className="font-serif text-2xl font-bold text-charcoal">Sign in to view your cart</h1>
+                    <p className="mt-2 text-warm-gray">Log in to add items and manage your cart</p>
+                    <Link
+                        href="/login"
+                        className="mt-6 inline-flex items-center gap-2 rounded-lg bg-burgundy px-8 py-3 text-sm font-semibold text-white hover:bg-burgundy-dark transition-colors"
+                    >
+                        Sign In
+                    </Link>
+                </div>
+            </div>
+        );
+    }
+
+    // Loading state
+    if (loading && items.length === 0) {
+        return (
+            <div className="min-h-screen bg-cream flex items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-burgundy" />
+            </div>
+        );
+    }
 
     if (items.length === 0) {
         return (
@@ -51,28 +81,41 @@ export default function CartPage() {
             <div className="mx-auto max-w-7xl px-4 py-10">
                 <h1 className="font-serif text-3xl font-bold text-charcoal mb-8">Your Cart</h1>
 
+                {error && (
+                    <div className="mb-4 rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">
+                        {error}
+                    </div>
+                )}
+
                 <div className="lg:grid lg:grid-cols-[1fr_380px] lg:gap-8">
                     {/* Cart Items */}
                     <div className="space-y-4">
                         {items.map(item => {
-                            const price = item.product.price ?? 350000;
+                            const price = item.price ?? 0;
                             return (
                                 <div
-                                    key={item.product.product_id}
+                                    key={item.cart_item_id}
                                     className="flex items-center gap-4 rounded-xl border border-light-border bg-white p-4 sm:p-6 transition-all hover:shadow-sm"
                                 >
                                     {/* Image */}
                                     <div className="h-20 w-20 sm:h-24 sm:w-24 flex-shrink-0 rounded-lg bg-cream-dark flex items-center justify-center">
-                                        <span className="text-4xl">🍷</span>
+                                        {item.image_url ? (
+                                            <img src={item.image_url} alt={item.product_name || ''} className="h-full w-full object-cover rounded-lg" />
+                                        ) : (
+                                            <span className="text-4xl">🍷</span>
+                                        )}
                                     </div>
 
                                     {/* Info */}
                                     <div className="flex-1 min-w-0">
                                         <h3 className="font-serif text-base font-semibold text-charcoal truncate">
-                                            {item.product.product_name}
+                                            {item.product_name || 'Product'}
                                         </h3>
-                                        {item.product.brand && (
-                                            <p className="text-xs text-warm-gray mt-0.5">{item.product.brand}</p>
+                                        {item.size_label && (
+                                            <p className="text-xs text-warm-gray mt-0.5">{item.size_label}</p>
+                                        )}
+                                        {item.sku && (
+                                            <p className="text-xs text-warm-gray mt-0.5">SKU: {item.sku}</p>
                                         )}
                                         <p className="mt-1 font-serif text-lg font-bold text-burgundy">
                                             ${price.toLocaleString('en-US')}
@@ -82,15 +125,17 @@ export default function CartPage() {
                                     {/* Quantity */}
                                     <div className="flex items-center rounded-lg border border-light-border">
                                         <button
-                                            onClick={() => updateQuantity(item.product.product_id, item.quantity - 1)}
-                                            className="px-2.5 py-1.5 text-warm-gray hover:text-charcoal"
+                                            onClick={() => updateQuantity(item.cart_item_id, item.quantity - 1)}
+                                            disabled={loading}
+                                            className="px-2.5 py-1.5 text-warm-gray hover:text-charcoal disabled:opacity-50"
                                         >
                                             <Minus className="h-3 w-3" />
                                         </button>
                                         <span className="w-8 text-center text-sm font-medium text-charcoal">{item.quantity}</span>
                                         <button
-                                            onClick={() => updateQuantity(item.product.product_id, item.quantity + 1)}
-                                            className="px-2.5 py-1.5 text-warm-gray hover:text-charcoal"
+                                            onClick={() => updateQuantity(item.cart_item_id, item.quantity + 1)}
+                                            disabled={loading}
+                                            className="px-2.5 py-1.5 text-warm-gray hover:text-charcoal disabled:opacity-50"
                                         >
                                             <Plus className="h-3 w-3" />
                                         </button>
@@ -98,8 +143,9 @@ export default function CartPage() {
 
                                     {/* Remove */}
                                     <button
-                                        onClick={() => { removeItem(item.product.product_id); toast.success('Removed from cart'); }}
-                                        className="p-2 text-warm-gray hover:text-red-500 transition-colors"
+                                        onClick={() => { removeItem(item.cart_item_id); toast.success('Removed from cart'); }}
+                                        disabled={loading}
+                                        className="p-2 text-warm-gray hover:text-red-500 transition-colors disabled:opacity-50"
                                     >
                                         <X className="h-4 w-4" />
                                     </button>
@@ -115,14 +161,18 @@ export default function CartPage() {
 
                             <div className="space-y-3 text-sm border-b border-light-border pb-4 mb-4">
                                 {items.map(item => {
-                                    const price = item.product.price ?? 350000;
+                                    const price = item.price ?? 0;
                                     return (
-                                        <div key={item.product.product_id} className="flex items-start gap-3">
+                                        <div key={item.cart_item_id} className="flex items-start gap-3">
                                             <div className="h-12 w-12 flex-shrink-0 rounded-lg bg-cream-dark flex items-center justify-center">
-                                                <span className="text-lg">🍷</span>
+                                                {item.image_url ? (
+                                                    <img src={item.image_url} alt="" className="h-full w-full object-cover rounded-lg" />
+                                                ) : (
+                                                    <span className="text-lg">🍷</span>
+                                                )}
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <p className="text-charcoal font-medium truncate">{item.product.product_name}</p>
+                                                <p className="text-charcoal font-medium truncate">{item.product_name || 'Product'}</p>
                                                 <p className="text-xs text-warm-gray">Qty: {item.quantity}</p>
                                             </div>
                                             <p className="text-charcoal font-medium">${(price * item.quantity).toLocaleString('en-US')}</p>

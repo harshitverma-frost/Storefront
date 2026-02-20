@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ArrowRight, Award, Star, Mail, Wine, Grape, Sparkles } from 'lucide-react';
-import { getProducts } from '@/lib/api';
+import { getProducts, getCategories } from '@/lib/api';
 import { Product } from '@/types';
 import ProductCard from '@/components/ProductCard';
 import { SkeletonProductGrid } from '@/components/Skeleton';
@@ -11,13 +11,48 @@ import { SkeletonProductGrid } from '@/components/Skeleton';
 export default function HomePage() {
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [collections, setCollections] = useState<{ name: string; slug: string }[]>([]);
 
   useEffect(() => {
     getProducts({ limit: 8 }).then(products => {
       setFeaturedProducts(products);
       setLoading(false);
     });
+    // Fetch categories for collections
+    getCategories().then((cats: any[]) => {
+      if (Array.isArray(cats) && cats.length > 0) {
+        setCollections(
+          cats
+            .filter((c: any) => !c.parent_id) // only top-level
+            .slice(0, 3)
+            .map((c: any) => ({ name: c.name, slug: c.slug || c.name }))
+        );
+      }
+    });
   }, []);
+
+  // Icons for up to 3 collection cards
+  const collectionIcons = [Wine, Sparkles, Grape];
+  const collectionColors = [
+    'from-red-900/20 to-red-800/10',
+    'from-amber-100/60 to-yellow-50/40',
+    'from-pink-100/60 to-rose-50/40',
+  ];
+
+  // Fallback static collections if API returns empty
+  const displayCollections = collections.length > 0
+    ? collections.map((c, i) => ({
+      icon: collectionIcons[i % collectionIcons.length],
+      title: c.name,
+      subtitle: 'Explore collection',
+      color: collectionColors[i % collectionColors.length],
+      href: `/products?category=${encodeURIComponent(c.name)}`,
+    }))
+    : [
+      { icon: Wine, title: 'Red Wines', subtitle: 'Bold & Complex', color: 'from-red-900/20 to-red-800/10', href: '/products?category=Red' },
+      { icon: Sparkles, title: 'White Wines', subtitle: 'Crisp & Elegant', color: 'from-amber-100/60 to-yellow-50/40', href: '/products?category=White' },
+      { icon: Grape, title: 'Sparkling', subtitle: 'Celebratory', color: 'from-pink-100/60 to-rose-50/40', href: '/products?category=Sparkling' },
+    ];
 
   return (
     <div className="bg-cream">
@@ -72,14 +107,10 @@ export default function HomePage() {
           </div>
 
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
-            {[
-              { icon: Wine, title: 'Red Wines', subtitle: 'Bold & Complex', color: 'from-red-900/20 to-red-800/10' },
-              { icon: Sparkles, title: 'White Wines', subtitle: 'Crisp & Elegant', color: 'from-amber-100/60 to-yellow-50/40' },
-              { icon: Grape, title: 'Sparkling', subtitle: 'Celebratory', color: 'from-pink-100/60 to-rose-50/40' },
-            ].map((collection) => (
+            {displayCollections.map((collection) => (
               <Link
                 key={collection.title}
-                href={`/products?category=${encodeURIComponent(collection.title.split(' ')[0])}`}
+                href={collection.href}
                 className="group relative overflow-hidden rounded-2xl border border-light-border bg-white p-8 text-center transition-all duration-300 hover:shadow-lg hover:-translate-y-1"
               >
                 <div className={`absolute inset-0 bg-gradient-to-br ${collection.color} opacity-0 group-hover:opacity-100 transition-opacity`} />
