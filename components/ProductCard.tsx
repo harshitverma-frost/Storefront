@@ -31,9 +31,17 @@ export default function ProductCard({ product }: ProductCardProps) {
                 {/* Image Section */}
                 <div className="relative h-72 overflow-hidden bg-gradient-to-br from-[#f8f5f2] to-[#efe7df]">
                     <div className="absolute inset-0 flex items-center justify-center">
-                        <span className="text-[110px] transition-transform duration-700 group-hover:scale-110">
-                            <img src="/card-drink.webp" alt="" />
-                        </span>
+                        {product.images && product.images.length > 0 ? (
+                            <img
+                                src={product.images[0]}
+                                alt={product.product_name}
+                                className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
+                            />
+                        ) : (
+                            <span className="text-[110px] transition-transform duration-700 group-hover:scale-110">
+                                <img src="/card-drink.webp" alt="" />
+                            </span>
+                        )}
                     </div>
 
                     {/* reflection overlay */}

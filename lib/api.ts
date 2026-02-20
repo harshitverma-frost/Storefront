@@ -153,6 +153,26 @@ export async function changePassword(currentPassword: string, newPassword: strin
     return res.json();
 }
 
+export async function deactivateAccount(password: string) {
+    const res = await fetch(`${API_URL}/api/auth/deactivate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ password }),
+    });
+    return res.json();
+}
+
+export async function reactivateAccount(email: string, password: string) {
+    const res = await fetch(`${API_URL}/api/auth/reactivate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email, password }),
+    });
+    return res.json();
+}
+
 /* ─── Cart ─── */
 
 export async function createCart(customerId?: string) {
@@ -176,13 +196,19 @@ export async function getCart(params: { cart_id?: string; customer_id?: string }
     return res.json();
 }
 
-export async function addCartItem(cartId: string, variantId: string, quantity: number) {
-    console.log("added to cart...");
+export async function addCartItem(cartId: string, itemId: string, quantity: number, isVariant = true) {
+    const body: Record<string, unknown> = { cart_id: cartId, quantity };
+    // Backend accepts either variant_id or product_id
+    if (isVariant) {
+        body.variant_id = itemId;
+    } else {
+        body.product_id = itemId;
+    }
     const res = await fetch(`${API_URL}/api/cart/items`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ cart_id: cartId, variant_id: variantId, quantity }),
+        body: JSON.stringify(body),
     });
     return res.json();
 }
@@ -267,6 +293,31 @@ export async function updateCustomerProfile(id: string, data: Record<string, unk
 export async function verifyAge(customerId: string) {
     const res = await fetch(`${API_URL}/api/customers/${customerId}/verify-age`, {
         method: 'POST',
+        credentials: 'include',
+    });
+    return res.json();
+}
+
+export async function uploadProfileImage(customerId: string, base64Image: string) {
+    const res = await fetch(`${API_URL}/api/customers/${customerId}/profile-image`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ image: base64Image }),
+    });
+    return res.json();
+}
+
+export async function getProfileImage(customerId: string) {
+    const res = await fetch(`${API_URL}/api/customers/${customerId}/profile-image`, {
+        credentials: 'include',
+    });
+    return res.json();
+}
+
+export async function removeProfileImage(customerId: string) {
+    const res = await fetch(`${API_URL}/api/customers/${customerId}/profile-image`, {
+        method: 'DELETE',
         credentials: 'include',
     });
     return res.json();
@@ -390,10 +441,10 @@ export async function clearWishlist() {
 
 /* ─── Categories ─── */
 
-export async function getCategories(tree?: boolean) {
+export async function getCategories(tree?: boolean): Promise<any[]> {
     const qs = tree ? '?tree=true' : '';
     const res = await fetch(`${API_URL}/api/categories${qs}`);
-    const json: ApiResponse = await res.json();
+    const json: ApiResponse<any[]> = await res.json();
     return json.success && json.data ? json.data : [];
 }
 
