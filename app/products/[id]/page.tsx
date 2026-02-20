@@ -9,6 +9,7 @@ import { useWishlist } from '@/context/WishlistContext';
 import ProductCard from '@/components/ProductCard';
 import { SkeletonLine } from '@/components/Skeleton';
 import { Heart, ShoppingCart, Minus, Plus, Star, Truck, RotateCcw, ChevronRight } from 'lucide-react';
+import ReviewSection from '@/components/reviews/ReviewSection';
 import toast from 'react-hot-toast';
 
 interface Props {
@@ -138,6 +139,34 @@ export default function ProductDetailPage({ params }: Props) {
                             <p className="text-warm-gray">{product.brand}</p>
                         )}
 
+                        {/* Product metadata tags */}
+                        <div className="flex flex-wrap gap-x-5 gap-y-1.5 text-sm">
+                            {product.category && (
+                                <span className="flex items-center gap-1.5">
+                                    <span className="text-warm-gray/60 font-medium">Category:</span>
+                                    <span className="text-charcoal">{product.category}</span>
+                                </span>
+                            )}
+                            {product.country_of_origin && (
+                                <span className="flex items-center gap-1.5">
+                                    <span className="text-warm-gray/60 font-medium">Country of Origin:</span>
+                                    <span className="text-burgundy/80 font-semibold">{product.country_of_origin}</span>
+                                </span>
+                            )}
+                            <span className="flex items-center gap-1.5">
+                                <span className="text-warm-gray/60 font-medium">Alcohol:</span>
+                                <span className="text-burgundy/80 font-semibold">
+                                    {product.alcohol_percentage != null ? `${product.alcohol_percentage}% ABV` : '—'}
+                                </span>
+                            </span>
+                            {product.unit_of_measure && (
+                                <span className="flex items-center gap-1.5">
+                                    <span className="text-warm-gray/60 font-medium">Unit:</span>
+                                    <span className="text-charcoal">{product.unit_of_measure}</span>
+                                </span>
+                            )}
+                        </div>
+
                         {/* PRICE */}
                         <p className="text-3xl font-bold text-burgundy">
                             ${displayPrice}
@@ -211,6 +240,9 @@ export default function ProductDetailPage({ params }: Props) {
                         </div>
                     </div>
                 </div>
+
+                {/* REVIEWS SECTION */}
+                <ReviewSection productId={id} />
 
                 {/* RELATED */}
                 {relatedProducts.length > 0 && (

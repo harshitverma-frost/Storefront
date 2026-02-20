@@ -8,7 +8,7 @@ export interface FilterState {
     search: string;
     category: string;
     brands: string[];
-    countries: string[];
+    country: string;
     ratings: string[];
     priceRange: [number, number];
     alcoholRange: [number, number];
@@ -22,7 +22,7 @@ const DEFAULTS: FilterState = {
     search: '',
     category: '',
     brands: [],
-    countries: [],
+    country: '',
     ratings: [],
     priceRange: [0, 500],
     alcoholRange: [0, 60],
@@ -56,7 +56,7 @@ export function useFilters() {
         search: searchParams.get('search') || DEFAULTS.search,
         category: searchParams.get('category') || DEFAULTS.category,
         brands: parseArray(searchParams.get('brand')),
-        countries: parseArray(searchParams.get('country')),
+        country: searchParams.get('country') || DEFAULTS.country,
         ratings: parseArray(searchParams.get('rating')),
         priceRange: parseRange(searchParams.get('price'), DEFAULTS.priceRange),
         alcoholRange: parseRange(searchParams.get('alcohol'), DEFAULTS.alcoholRange),
@@ -86,7 +86,7 @@ export function useFilters() {
     const setSearch = useCallback((val: string) => setParam({ search: val || null }), [setParam]);
     const setCategory = useCallback((val: string) => setParam({ category: val || null }), [setParam]);
     const setBrands = useCallback((val: string[]) => setParam({ brand: val.length ? val.join(',') : null }), [setParam]);
-    const setCountries = useCallback((val: string[]) => setParam({ country: val.length ? val.join(',') : null }), [setParam]);
+    const setCountry = useCallback((val: string) => setParam({ country: val || null }), [setParam]);
     const setRatings = useCallback((val: string[]) => setParam({ rating: val.length ? val.join(',') : null }), [setParam]);
     const setPriceRange = useCallback((val: [number, number]) => {
         const priceConfig = FILTER_CONFIGS.find(f => f.key === 'price');
@@ -111,7 +111,7 @@ export function useFilters() {
     const removeFilter = useCallback((key: string, value: string) => {
         switch (key) {
             case 'brand': setBrands(filters.brands.filter(b => b !== value)); break;
-            case 'country': setCountries(filters.countries.filter(c => c !== value)); break;
+            case 'country': setCountry(''); break;
             case 'rating': setRatings(filters.ratings.filter(r => r !== value)); break;
             case 'category': setCategory(''); break;
             case 'search': setSearch(''); break;
@@ -122,7 +122,7 @@ export function useFilters() {
             case 'newArrivals': setNewArrivals(false); break;
             case 'sort': setSort(''); break;
         }
-    }, [filters, setBrands, setCountries, setRatings, setCategory, setSearch, setPriceRange, setAlcoholRange, setInStock, setBestSellers, setNewArrivals, setSort]);
+    }, [filters, setBrands, setCountry, setRatings, setCategory, setSearch, setPriceRange, setAlcoholRange, setInStock, setBestSellers, setNewArrivals, setSort]);
 
     // Build chips from active filters
     const activeChips = useMemo(() => {
@@ -130,7 +130,7 @@ export function useFilters() {
         if (filters.search) chips.push({ key: 'search', label: 'Search', value: filters.search });
         if (filters.category) chips.push({ key: 'category', label: 'Category', value: filters.category });
         filters.brands.forEach(b => chips.push({ key: 'brand', label: 'Brand', value: b }));
-        filters.countries.forEach(c => chips.push({ key: 'country', label: 'Country', value: c }));
+        if (filters.country) chips.push({ key: 'country', label: 'Country', value: filters.country });
         filters.ratings.forEach(r => chips.push({ key: 'rating', label: 'Rating', value: r }));
         const priceConfig = FILTER_CONFIGS.find(f => f.key === 'price');
         if (filters.priceRange[0] !== (priceConfig?.min ?? 0) || filters.priceRange[1] !== (priceConfig?.max ?? 500)) {
@@ -152,7 +152,7 @@ export function useFilters() {
         setSearch,
         setCategory,
         setBrands,
-        setCountries,
+        setCountry,
         setRatings,
         setPriceRange,
         setAlcoholRange,

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { getProducts, getFilterOptions, searchProducts as apiSearch } from '@/lib/api';
+import { getProducts, getFilterOptions, getFilteredProducts, searchProducts as apiSearch } from '@/lib/api';
 import { Product } from '@/types';
 import ProductCard from '@/components/ProductCard';
 import { SkeletonProductGrid } from '@/components/Skeleton';
@@ -17,6 +17,7 @@ import RangeSlider from '@/components/filters/RangeSlider';
 import ToggleSwitch from '@/components/filters/ToggleSwitch';
 import SortDropdown from '@/components/filters/SortDropdown';
 import ActiveFilterChips from '@/components/filters/ActiveFilterChips';
+import CountryDropdown from '@/components/filters/CountryDropdown';
 
 const ITEMS_PER_PAGE = 12;
 
@@ -26,7 +27,7 @@ function ProductsContent() {
         activeChips,
         setSearch,
         setBrands,
-        setCountries,
+        setCountry,
         setRatings,
         setPriceRange,
         setAlcoholRange,
@@ -49,6 +50,18 @@ function ProductsContent() {
     const [brandOptions, setBrandOptions] = useState<string[]>([]);
     const [countryOptions, setCountryOptions] = useState<string[]>([]);
 
+    // Static wine-producing countries — always shown even before any products have country set
+    const STATIC_COUNTRIES = [
+        'Australia', 'Argentina', 'Chile', 'France',
+        'Germany', 'India', 'Italy', 'Portugal',
+        'South Africa', 'Spain', 'USA',
+    ];
+
+    // Merge static list with any countries already in the DB
+    const displayCountryOptions = Array.from(
+        new Set([...STATIC_COUNTRIES, ...countryOptions])
+    ).sort();
+
     // Load dynamic filter options once
     useEffect(() => {
         getFilterOptions().then(opts => {
@@ -65,18 +78,37 @@ function ProductsContent() {
             if (filters.search) {
                 data = await apiSearch(filters.search);
             } else {
-                data = await getProducts({
-                    limit: 200,
-                    category: filters.category || undefined,
-                    brand: filters.brands.length === 1 ? filters.brands[0] : undefined,
-                    sort: filters.sort || undefined,
-                });
+                // Check if any filter API params are active
+                const alcConfig = FILTER_CONFIGS.find(f => f.key === 'alcohol');
+                const aMin = alcConfig?.min ?? 0;
+                const aMax = alcConfig?.max ?? 60;
+                const hasAlcoholFilter = filters.alcoholRange[0] !== aMin || filters.alcoholRange[1] !== aMax;
+                const hasCountryFilter = !!filters.country;
+
+                if (hasAlcoholFilter || hasCountryFilter) {
+                    data = await getFilteredProducts({
+                        min_abv: hasAlcoholFilter ? filters.alcoholRange[0] : undefined,
+                        max_abv: hasAlcoholFilter ? filters.alcoholRange[1] : undefined,
+                        country: filters.country || undefined,
+                        category: filters.category || undefined,
+                        brand: filters.brands.length === 1 ? filters.brands[0] : undefined,
+                        sort: filters.sort || undefined,
+                        limit: 200,
+                    });
+                } else {
+                    data = await getProducts({
+                        limit: 200,
+                        category: filters.category || undefined,
+                        brand: filters.brands.length === 1 ? filters.brands[0] : undefined,
+                        sort: filters.sort || undefined,
+                    });
+                }
             }
             setAllProducts(data);
             setLoading(false);
         };
         fetchProducts();
-    }, [filters.search, filters.category, filters.brands, filters.sort]);
+    }, [filters.search, filters.category, filters.brands, filters.sort, filters.alcoholRange, filters.country]);
 
     // Client-side filtering for params the backend doesn't support
     const filtered = useMemo(() => {
@@ -100,12 +132,28 @@ function ProductsContent() {
             });
         }
 
-        // Alcohol % range (from product strength field in specs — not available in list, skip if no data)
-        // This would require product details; for now we keep it as a UI element
+        // Alcohol % range
+        const alcConfig = FILTER_CONFIGS.find(f => f.key === 'alcohol');
+        const aMin = alcConfig?.min ?? 0;
+        const aMax = alcConfig?.max ?? 60;
+        if (filters.alcoholRange[0] !== aMin || filters.alcoholRange[1] !== aMax) {
+            result = result.filter(p => {
+                const abv = p.alcohol_percentage ?? 0;
+                return abv >= filters.alcoholRange[0] && abv <= filters.alcoholRange[1];
+            });
+        }
 
         // In Stock toggle
         if (filters.inStock) {
             result = result.filter(p => (p.quantity ?? 0) > 0);
+        }
+
+        // Country of Origin (single-select)
+        if (filters.country) {
+            result = result.filter(p =>
+                p.country_of_origin &&
+                p.country_of_origin.toLowerCase() === filters.country.toLowerCase()
+            );
         }
 
         // New Arrivals — show products created in last 30 days
@@ -116,6 +164,13 @@ function ProductsContent() {
                 if (!p.created_at) return false;
                 return new Date(p.created_at) >= thirtyDaysAgo;
             });
+        }
+
+        // Client-side sorting for alcohol
+        if (filters.sort === 'alcohol_asc') {
+            result.sort((a, b) => (a.alcohol_percentage ?? 0) - (b.alcohol_percentage ?? 0));
+        } else if (filters.sort === 'alcohol_desc') {
+            result.sort((a, b) => (b.alcohol_percentage ?? 0) - (a.alcohol_percentage ?? 0));
         }
 
         return result;
@@ -197,16 +252,12 @@ function ProductsContent() {
                 />
             </FilterSection>
 
-            {/* Country */}
-            {countryOptions.length > 0 && (
-                <FilterSection title="Country" defaultOpen={false}>
-                    <CheckboxGroup
-                        options={countryOptions}
-                        selected={filters.countries}
-                        onChange={setCountries}
-                    />
-                </FilterSection>
-            )}
+            {/* Country — single-select dropdown (always shown) */}
+            <CountryDropdown
+                options={displayCountryOptions}
+                selected={filters.country}
+                onChange={setCountry}
+            />
 
             {/* Rating */}
             <FilterSection title="Rating" defaultOpen={false}>
@@ -397,8 +448,8 @@ function ProductsContent() {
                                                         window.dispatchEvent(new PopStateEvent('popstate'));
                                                     }}
                                                     className={`h-9 w-9 rounded-lg text-sm font-medium transition-all ${currentPage === pageNum
-                                                            ? 'bg-burgundy text-white shadow-sm'
-                                                            : 'border border-light-border text-warm-gray hover:text-charcoal hover:border-warm-gray/50'
+                                                        ? 'bg-burgundy text-white shadow-sm'
+                                                        : 'border border-light-border text-warm-gray hover:text-charcoal hover:border-warm-gray/50'
                                                         }`}
                                                 >
                                                     {pageNum}

@@ -37,6 +37,37 @@ export async function getProducts(params?: {
     }
 }
 
+export async function getFilteredProducts(params?: {
+    min_abv?: number;
+    max_abv?: number;
+    country?: string;
+    brand?: string;
+    category?: string;
+    sort?: string;
+    limit?: number;
+    offset?: number;
+}): Promise<Product[]> {
+    try {
+        const searchParams = new URLSearchParams();
+        if (params?.min_abv !== undefined) searchParams.set('min_abv', String(params.min_abv));
+        if (params?.max_abv !== undefined) searchParams.set('max_abv', String(params.max_abv));
+        if (params?.country) searchParams.set('country', params.country);
+        if (params?.brand) searchParams.set('brand', params.brand);
+        if (params?.category) searchParams.set('category', params.category);
+        if (params?.sort) searchParams.set('sort', params.sort);
+        if (params?.limit) searchParams.set('limit', String(params.limit));
+        if (params?.offset) searchParams.set('offset', String(params.offset));
+
+        const url = `${API_URL}/api/products/filter${searchParams.toString() ? '?' + searchParams.toString() : ''}`;
+        const res = await fetch(url);
+        const json: ApiResponse<Product[]> = await res.json();
+        return json.success && json.data ? json.data : [];
+    } catch (error) {
+        console.error('[API] Failed to fetch filtered products:', error);
+        return [];
+    }
+}
+
 /** Fetch all products once and extract unique brands & countries for filter options */
 export async function getFilterOptions(): Promise<{ brands: string[]; countries: string[] }> {
     try {
@@ -45,6 +76,7 @@ export async function getFilterOptions(): Promise<{ brands: string[]; countries:
         const countrySet = new Set<string>();
         products.forEach(p => {
             if (p.brand) brandSet.add(p.brand);
+            if (p.country_of_origin) countrySet.add(p.country_of_origin);
         });
         return {
             brands: Array.from(brandSet).sort(),
@@ -334,6 +366,11 @@ export async function submitReview(data: { product_id: string; rating: number; t
 
 export async function getMyReviews() {
     const res = await fetch(`${API_URL}/api/reviews/my`, { credentials: 'include' });
+    return res.json();
+}
+
+export async function getMyReviewForProduct(productId: string) {
+    const res = await fetch(`${API_URL}/api/reviews/my/${productId}`, { credentials: 'include' });
     return res.json();
 }
 
