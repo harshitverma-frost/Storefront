@@ -4,9 +4,9 @@
  * Backend response format: { success: boolean, message: string, data: T }
  */
 
-import { Product, ProductWithDetails, ApiResponse } from '@/types';
+import { Product, FilteredProduct, FilterMeta, ProductWithDetails, ApiResponse } from '@/types';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://ecommerce-backend-h23p.onrender.com';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
 /* ─── Products ─── */
 
@@ -37,14 +37,69 @@ export async function getProducts(params?: {
     }
 }
 
+/* ─── Filtered Products (backend-powered) ─── */
+
+export interface FilterParams {
+    page?: number;
+    limit?: number;
+    sort?: string;
+    min_price?: number;
+    max_price?: number;
+    min_abv?: number;
+    max_abv?: number;
+    country?: string;      // comma-separated
+    min_rating?: number;
+    availability?: string;  // 'in_stock' | 'out_of_stock' | 'all'
+    category?: string;
+    brand?: string;
+}
+
+export async function getFilteredProducts(
+    params: FilterParams = {}
+): Promise<{ data: FilteredProduct[]; meta: FilterMeta }> {
+    try {
+        const sp = new URLSearchParams();
+        if (params.page) sp.set('page', String(params.page));
+        if (params.limit) sp.set('limit', String(params.limit));
+        if (params.sort) sp.set('sort', params.sort);
+        if (params.min_price != null) sp.set('min_price', String(params.min_price));
+        if (params.max_price != null) sp.set('max_price', String(params.max_price));
+        if (params.min_abv != null) sp.set('min_abv', String(params.min_abv));
+        if (params.max_abv != null) sp.set('max_abv', String(params.max_abv));
+        if (params.country) sp.set('country', params.country);
+        if (params.min_rating != null) sp.set('min_rating', String(params.min_rating));
+        if (params.availability) sp.set('availability', params.availability);
+        if (params.category) sp.set('category', params.category);
+        if (params.brand) sp.set('brand', params.brand);
+
+        const qs = sp.toString();
+        const url = `${API_URL}/api/products/filter${qs ? '?' + qs : ''}`;
+        const res = await fetch(url);
+        const json = await res.json();
+
+        if (json.success) {
+            return {
+                data: json.data ?? [],
+                meta: json.meta ?? { total_count: 0, page: 1, limit: 20, total_pages: 0, has_next_page: false, has_prev_page: false, filters_applied: {}, sort: 'newest', cache_hit: false },
+            };
+        }
+        return { data: [], meta: { total_count: 0, page: 1, limit: 20, total_pages: 0, has_next_page: false, has_prev_page: false, filters_applied: {}, sort: 'newest', cache_hit: false } };
+    } catch (error) {
+        console.error('[API] Failed to fetch filtered products:', error);
+        return { data: [], meta: { total_count: 0, page: 1, limit: 20, total_pages: 0, has_next_page: false, has_prev_page: false, filters_applied: {}, sort: 'newest', cache_hit: false } };
+    }
+}
+
 /** Fetch all products once and extract unique brands & countries for filter options */
 export async function getFilterOptions(): Promise<{ brands: string[]; countries: string[] }> {
     try {
-        const products = await getProducts({ limit: 500 });
+        // Use the filter endpoint with a large limit to get all products with their country_of_origin
+        const { data: products } = await getFilteredProducts({ limit: 500 });
         const brandSet = new Set<string>();
         const countrySet = new Set<string>();
-        products.forEach(p => {
+        products.forEach((p: FilteredProduct) => {
             if (p.brand) brandSet.add(p.brand);
+            if (p.country_of_origin) countrySet.add(p.country_of_origin);
         });
         return {
             brands: Array.from(brandSet).sort(),

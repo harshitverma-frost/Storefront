@@ -20,6 +20,28 @@ export interface Product {
     images?: string[];
 }
 
+/** Shape returned by GET /api/products/filter */
+export interface FilteredProduct extends Product {
+    alcohol_percentage?: number;
+    country_of_origin?: string;
+    avg_rating?: number;
+    review_count?: number;
+    total_stock?: number;
+    thumbnail_url?: string;
+}
+
+export interface FilterMeta {
+    total_count: number;
+    page: number;
+    limit: number;
+    total_pages: number;
+    has_next_page: boolean;
+    has_prev_page: boolean;
+    filters_applied: Record<string, unknown>;
+    sort: string;
+    cache_hit: boolean;
+}
+
 export interface ProductWithDetails extends Product {
     specifications?: ProductSpecification | null;
     packaging?: ProductPackaging | null;
