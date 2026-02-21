@@ -29,10 +29,11 @@ export async function getProducts(params?: {
 
         const url = `${API_URL}/api/products${searchParams.toString() ? '?' + searchParams.toString() : ''}`;
         const res = await fetch(url);
+        if (!res.ok) return [];
         const json: ApiResponse<Product[]> = await res.json();
         return json.success && json.data ? json.data : [];
     } catch (error) {
-        console.error('[API] Failed to fetch products:', error);
+        console.warn('[API] Failed to fetch products. Backend might be unreachable.');
         return [];
     }
 }
@@ -497,19 +498,31 @@ export async function clearWishlist() {
 /* ─── Categories ─── */
 
 export async function getCategories(tree?: boolean): Promise<any[]> {
-    const qs = tree ? '?tree=true' : '';
-    const res = await fetch(`${API_URL}/api/categories${qs}`);
-    const json: ApiResponse<any[]> = await res.json();
-    return json.success && json.data ? json.data : [];
+    try {
+        const qs = tree ? '?tree=true' : '';
+        const res = await fetch(`${API_URL}/api/categories${qs}`);
+        if (!res.ok) return [];
+        const json: ApiResponse<any[]> = await res.json();
+        return json.success && json.data ? json.data : [];
+    } catch (error) {
+        console.warn('[API] Failed to fetch categories. Backend might be unreachable.');
+        return [];
+    }
 }
 
 export async function getCategoryProducts(categoryId: string, params?: { limit?: number; offset?: number }) {
-    const searchParams = new URLSearchParams();
-    if (params?.limit) searchParams.set('limit', String(params.limit));
-    if (params?.offset) searchParams.set('offset', String(params.offset));
-    const qs = searchParams.toString();
-    const res = await fetch(`${API_URL}/api/categories/${categoryId}/products${qs ? '?' + qs : ''}`);
-    const json: ApiResponse<Product[]> = await res.json();
-    return json.success && json.data ? json.data : [];
+    try {
+        const searchParams = new URLSearchParams();
+        if (params?.limit) searchParams.set('limit', String(params.limit));
+        if (params?.offset) searchParams.set('offset', String(params.offset));
+        const qs = searchParams.toString();
+        const res = await fetch(`${API_URL}/api/categories/${categoryId}/products${qs ? '?' + qs : ''}`);
+        if (!res.ok) return [];
+        const json: ApiResponse<Product[]> = await res.json();
+        return json.success && json.data ? json.data : [];
+    } catch (error) {
+        console.warn('[API] Failed to fetch category products. Backend might be unreachable.');
+        return [];
+    }
 }
 

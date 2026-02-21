@@ -6,7 +6,7 @@ interface AuthContextType {
     user: UserInfo | null;
     isAuthenticated: boolean;
     isLoading: boolean;
-    login: (email: string, password: string) => Promise<{ success: boolean; error?: string; code?: string }>;
+    login: (email: string, password: string) => Promise<{ success: boolean; error?: string; code?: string; role?: string; access_token?: string }>;
     register: (name: string, email: string, password: string) => Promise<RegisterResponse>;
     logout: () => void;
     verifyUserAge: (dateOfBirth: string) => Promise<{ success: boolean; error?: string }>;
@@ -30,6 +30,7 @@ interface UserInfo {
     id: string;
     name: string;
     email: string;
+    role?: string;
     is_age_verified?: boolean;
 }
 
@@ -43,6 +44,7 @@ function toUserInfo(customer: Record<string, unknown>): UserInfo {
         id: (customer.customer_id ?? customer.id ?? '') as string,
         name: (customer.full_name ?? customer.name ?? '') as string,
         email: (customer.email ?? '') as string,
+        role: (customer.role as string) || 'customer',
         is_age_verified: !!(customer.is_age_verified),
     };
 }
@@ -99,7 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 setUser(u);
                 localStorage.setItem(USER_KEY, JSON.stringify(u));
                 notifyListeners('login', u);
-                return { success: true };
+                return { success: true, role: u.role, access_token: json.data.access_token };
             }
             if (json.message) return { success: false, error: json.message, code: json.code };
         } catch (err) {
