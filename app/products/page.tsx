@@ -17,6 +17,7 @@ import RangeSlider from '@/components/filters/RangeSlider';
 import ToggleSwitch from '@/components/filters/ToggleSwitch';
 import SortDropdown from '@/components/filters/SortDropdown';
 import ActiveFilterChips from '@/components/filters/ActiveFilterChips';
+import CountryDropdown from '@/components/filters/CountryDropdown';
 
 const ITEMS_PER_PAGE = 12;
 
@@ -26,7 +27,7 @@ function ProductsContent() {
         activeChips,
         setSearch,
         setBrands,
-        setCountries,
+        setCountry,
         setRatings,
         setPriceRange,
         setAlcoholRange,
@@ -49,6 +50,18 @@ function ProductsContent() {
     // Dynamic filter options (loaded from API)
     const [brandOptions, setBrandOptions] = useState<string[]>([]);
     const [countryOptions, setCountryOptions] = useState<string[]>([]);
+
+    // Static wine-producing countries — always shown even before any products have country set
+    const STATIC_COUNTRIES = [
+        'Australia', 'Argentina', 'Chile', 'France',
+        'Germany', 'India', 'Italy', 'Portugal',
+        'South Africa', 'Spain', 'USA',
+    ];
+
+    // Merge static list with any countries already in the DB
+    const displayCountryOptions = Array.from(
+        new Set([...STATIC_COUNTRIES, ...countryOptions])
+    ).sort();
 
     // Load dynamic filter options once
     useEffect(() => {
@@ -103,7 +116,7 @@ function ProductsContent() {
             if (filters.alcoholRange[1] !== aMax) params.max_abv = filters.alcoholRange[1];
 
             // Country
-            if (filters.countries.length > 0) params.country = filters.countries.join(',');
+            if (filters.country) params.country = filters.country;
 
             // Rating — extract numeric value from strings like '4★ & above'
             if (filters.ratings.length > 0) {
@@ -195,16 +208,12 @@ function ProductsContent() {
                 />
             </FilterSection>
 
-            {/* Country */}
-            {countryOptions.length > 0 && (
-                <FilterSection title="Country" defaultOpen={false}>
-                    <CheckboxGroup
-                        options={countryOptions}
-                        selected={filters.countries}
-                        onChange={setCountries}
-                    />
-                </FilterSection>
-            )}
+            {/* Country — single-select dropdown (always shown) */}
+            <CountryDropdown
+                options={displayCountryOptions}
+                selected={filters.country}
+                onChange={setCountry}
+            />
 
             {/* Rating */}
             <FilterSection title="Rating" defaultOpen={false}>

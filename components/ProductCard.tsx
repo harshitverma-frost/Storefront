@@ -4,6 +4,9 @@ import Link from 'next/link';
 import { Heart } from 'lucide-react';
 import { Product } from '@/types';
 import { useWishlist } from '@/context/WishlistContext';
+import { getRatingSummary } from '@/lib/api';
+import StarRating from '@/components/reviews/StarRating';
+import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 
 interface ProductCardProps {
@@ -13,6 +16,18 @@ interface ProductCardProps {
 export default function ProductCard({ product }: ProductCardProps) {
     const { isInWishlist, toggleItem } = useWishlist();
     const wishlisted = isInWishlist(product.product_id);
+
+    const [avgRating, setAvgRating] = useState(0);
+    const [totalReviews, setTotalReviews] = useState(0);
+
+    useEffect(() => {
+        getRatingSummary(product.product_id).then(res => {
+            if (res.success && res.data) {
+                setAvgRating(res.data.average_rating ?? 0);
+                setTotalReviews(res.data.total_reviews ?? 0);
+            }
+        }).catch(() => { });
+    }, [product.product_id]);
 
     const handleToggleWishlist = (e: React.MouseEvent) => {
         e.preventDefault();
@@ -80,9 +95,26 @@ export default function ProductCard({ product }: ProductCardProps) {
                         </p>
                     )}
 
+                    {product.alcohol_percentage != null && (
+                        <p className="mt-1.5 text-[11px] font-medium text-neutral-400 tracking-wide">
+                            {product.alcohol_percentage}% ABV
+                        </p>
+                    )}
+
                     <p className="mt-3 text-xl font-serif font-bold text-[#6b0f1a] tracking-tight">
                         ${displayPrice.toLocaleString('en-US')}
                     </p>
+
+                    {/* Rating */}
+                    <div className="mt-2 flex items-center gap-1.5">
+                        <StarRating value={avgRating} size="sm" />
+                        <span className="text-xs text-neutral-400">
+                            {avgRating > 0 ? `${avgRating.toFixed(1)}` : ''}
+                            {totalReviews > 0 && (
+                                <span className="ml-1">({totalReviews} review{totalReviews !== 1 ? 's' : ''})</span>
+                            )}
+                        </span>
+                    </div>
                 </div>
             </div>
         </Link>

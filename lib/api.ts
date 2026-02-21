@@ -444,6 +444,11 @@ export async function getMyReviews() {
     return res.json();
 }
 
+export async function getMyReviewForProduct(productId: string) {
+    const res = await fetch(`${API_URL}/api/reviews/my/${productId}`, { credentials: 'include' });
+    return res.json();
+}
+
 export async function deleteReview(reviewId: string) {
     const res = await fetch(`${API_URL}/api/reviews/${reviewId}`, {
         method: 'DELETE',

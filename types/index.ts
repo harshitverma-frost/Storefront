@@ -11,6 +11,8 @@ export interface Product {
     description?: string;
     unit_of_measure?: string;
     intended_use?: string;
+    country_of_origin?: string;
+    alcohol_percentage?: number;
     created_at?: string;
     updated_at?: string;
     /* Extended fields (may not exist in all DB rows) */

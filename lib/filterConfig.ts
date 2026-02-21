@@ -96,6 +96,8 @@ export const SORT_OPTIONS = [
     { label: 'Default', value: '' },
     { label: 'Price: Low to High', value: 'price_asc' },
     { label: 'Price: High to Low', value: 'price_desc' },
+    { label: 'Alcohol: Low to High', value: 'alcohol_asc' },
+    { label: 'Alcohol: High to Low', value: 'alcohol_desc' },
     { label: 'Newest First', value: 'newest' },
     { label: 'Name: A–Z', value: 'name_asc' },
     { label: 'Name: Z–A', value: 'name_desc' },
