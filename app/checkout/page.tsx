@@ -13,11 +13,16 @@ import Link from 'next/link';
 export default function CheckoutPage() {
     const router = useRouter();
     const { items, totalPrice, clearCart, cartId } = useCart();
-    const { user, isAuthenticated } = useAuth();
+    const { user, isAuthenticated, verifyUserAge } = useAuth();
     const [step, setStep] = useState(1); // 1: Address, 2: Payment, 3: Confirmation
     const [orderPlaced, setOrderPlaced] = useState(false);
     const [placing, setPlacing] = useState(false);
     const [orderId, setOrderId] = useState<string | null>(null);
+
+    // Age Verification State
+    const [showAgeModal, setShowAgeModal] = useState(false);
+    const [dob, setDob] = useState('');
+    const [verifyingAge, setVerifyingAge] = useState(false);
 
     // Saved addresses
     const [savedAddresses, setSavedAddresses] = useState<Address[]>([]);
@@ -81,6 +86,11 @@ export default function CheckoutPage() {
             return;
         }
 
+        if (isAuthenticated && user && !user.is_age_verified) {
+            setShowAgeModal(true);
+            return;
+        }
+
         setPlacing(true);
 
         try {
@@ -99,7 +109,7 @@ export default function CheckoutPage() {
                     product_id: item.product_id || '',
                     variant_id: item.variant_id,
                     quantity: item.quantity,
-                    unit_price: item.price || 0,
+                    unit_price: Number(item.price) || 0,
                 }));
 
                 result = await directCheckout({
@@ -114,7 +124,7 @@ export default function CheckoutPage() {
 
             if (result.success) {
                 setOrderId(result.data?.order_id || null);
-                await clearCart();
+                await clearCart(true);
                 setOrderPlaced(true);
                 setStep(3);
                 toast.success('Order placed successfully!');
@@ -128,6 +138,41 @@ export default function CheckoutPage() {
             setPlacing(false);
         }
     };
+
+    const handleVerifyAge = async () => {
+        if (!dob) {
+            toast.error('Please enter your date of birth');
+            return;
+        }
+        setVerifyingAge(true);
+        try {
+            const res = await verifyUserAge(dob);
+            if (res.success) {
+                toast.success('Age verified successfully!');
+                setShowAgeModal(false);
+                // After success, recursively call handlePlaceOrder, but since user state updates asynchronously
+                // we might need to rely on the updated user.is_age_verified. But the API already succeeded so 
+                // we'll just bypass the check by calling handlePlaceOrder immediately. However, since the state needs time to update,
+                // let's manually update the state or just bypass the check
+            } else {
+                toast.error(res.error || 'You must be 18 or older to purchase.');
+            }
+        } catch (error) {
+            toast.error('Something went wrong verifying your age.');
+        } finally {
+            setVerifyingAge(false);
+        }
+    };
+
+    // Auto-proceed checkout when is_age_verified becomes true
+    useEffect(() => {
+        if (isAuthenticated && user?.is_age_verified && showAgeModal) {
+            toast.success('Age verified. Placing order...');
+            setShowAgeModal(false);
+            handlePlaceOrder();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user?.is_age_verified]);
 
     // Order Confirmation
     if (orderPlaced) {
@@ -359,6 +404,51 @@ export default function CheckoutPage() {
                     </div>
                 )}
             </div>
+
+            {/* Age Verification Modal */}
+            {showAgeModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                    <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl" style={{ animation: 'slideUp 0.3s ease-out' }}>
+                        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-cream-dark">
+                            <span className="font-serif text-2xl font-bold text-burgundy">18+</span>
+                        </div>
+                        <h2 className="text-center font-serif text-2xl font-bold text-charcoal mb-2">Age Verification Required</h2>
+                        <p className="text-center text-sm text-warm-gray mb-6">
+                            You must be at least 18 years old to purchase alcohol. Please enter your date of birth to continue checkout.
+                        </p>
+
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-charcoal mb-1">Date of Birth</label>
+                                <input
+                                    type="date"
+                                    value={dob}
+                                    onChange={(e) => setDob(e.target.value)}
+                                    className="w-full rounded-lg border border-light-border px-4 py-3 text-sm focus:border-burgundy focus:outline-none"
+                                    max={new Date().toISOString().split('T')[0]}
+                                />
+                            </div>
+
+                            <div className="flex gap-3 pt-2">
+                                <button
+                                    onClick={() => setShowAgeModal(false)}
+                                    className="flex-1 rounded-lg border border-light-border py-3 text-sm font-medium text-charcoal hover:bg-cream transition-colors"
+                                    disabled={verifyingAge}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleVerifyAge}
+                                    disabled={verifyingAge || !dob}
+                                    className="flex-1 rounded-lg bg-burgundy py-3 text-sm font-semibold text-white hover:bg-burgundy-dark transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                                >
+                                    {verifyingAge ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Verify & Place Order'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

@@ -7,6 +7,24 @@
 import { Product, FilteredProduct, FilterMeta, ProductWithDetails, ApiResponse } from '@/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const TOKEN_KEY = 'ksp_wines_token';
+
+/** Read the JWT stored by AuthContext after login/register */
+function getStorefrontToken(): string | null {
+    if (typeof window === 'undefined') return null;
+    try { return localStorage.getItem(TOKEN_KEY); } catch { return null; }
+}
+
+/** fetch() wrapper that adds Authorization header + credentials: 'include' */
+export function authFetch(url: string, init?: RequestInit): Promise<Response> {
+    const token = getStorefrontToken();
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    // Merge with any existing headers
+    const existingHeaders = init?.headers as Record<string, string> | undefined;
+    if (existingHeaders) Object.assign(headers, existingHeaders);
+    return fetch(url, { ...init, headers, credentials: 'include' });
+}
 
 /* ─── Products ─── */
 
@@ -30,8 +48,16 @@ export async function getProducts(params?: {
         const url = `${API_URL}/api/products${searchParams.toString() ? '?' + searchParams.toString() : ''}`;
         const res = await fetch(url);
         if (!res.ok) return [];
-        const json: ApiResponse<Product[]> = await res.json();
-        return json.success && json.data ? json.data : [];
+        const json: ApiResponse<any> = await res.json();
+        // Backend may return data as { products: [...], meta } or as a direct array
+        let products: any[] = [];
+        if (Array.isArray(json.data)) products = json.data;
+        else if (Array.isArray(json.data.products)) products = json.data.products;
+
+        return products.map(p => ({
+            ...p,
+            images: p.thumbnail_base64 ? [p.thumbnail_base64] : []
+        }));
     } catch (error) {
         console.warn('[API] Failed to fetch products. Backend might be unreachable.');
         return [];
@@ -79,8 +105,12 @@ export async function getFilteredProducts(
         const json = await res.json();
 
         if (json.success) {
+            const data = json.data ?? [];
             return {
-                data: json.data ?? [],
+                data: data.map((p: any) => ({
+                    ...p,
+                    images: p.thumbnail_base64 ? [p.thumbnail_base64] : []
+                })),
                 meta: json.meta ?? { total_count: 0, page: 1, limit: 20, total_pages: 0, has_next_page: false, has_prev_page: false, filters_applied: {}, sort: 'newest', cache_hit: false },
             };
         }
@@ -114,8 +144,12 @@ export async function getFilterOptions(): Promise<{ brands: string[]; countries:
 export async function getProduct(id: string): Promise<Product | null> {
     try {
         const res = await fetch(`${API_URL}/api/products/${id}`);
-        const json: ApiResponse<Product> = await res.json();
-        return json.success && json.data ? json.data : null;
+        const json: ApiResponse<any> = await res.json();
+        if (json.success && json.data) {
+            const p = json.data;
+            return { ...p, images: p.thumbnail_base64 ? [p.thumbnail_base64] : [] };
+        }
+        return null;
     } catch (error) {
         console.error('[API] Failed to fetch product:', error);
         return null;
@@ -136,8 +170,14 @@ export async function getProductDetails(id: string): Promise<ProductWithDetails 
 export async function searchProducts(query: string): Promise<Product[]> {
     try {
         const res = await fetch(`${API_URL}/api/products/search?q=${encodeURIComponent(query)}`);
-        const json: ApiResponse<Product[]> = await res.json();
-        return json.success && json.data ? json.data : [];
+        const json: ApiResponse<any[]> = await res.json();
+        if (json.success && json.data) {
+            return json.data.map((p: any) => ({
+                ...p,
+                images: p.thumbnail_base64 ? [p.thumbnail_base64] : []
+            }));
+        }
+        return [];
     } catch (error) {
         console.error('[API] Failed to search products:', error);
         return [];
@@ -177,53 +217,46 @@ export async function registerUser(full_name: string, email: string, password: s
 
 export async function logoutUser() {
     try {
-        await fetch(`${API_URL}/api/auth/logout`, {
+        await authFetch(`${API_URL}/api/auth/logout`, {
             method: 'POST',
-            credentials: 'include',
         });
     } catch { /* silent */ }
 }
 
 export async function refreshAuthToken() {
-    const res = await fetch(`${API_URL}/api/auth/refresh-token`, {
+    const res = await authFetch(`${API_URL}/api/auth/refresh-token`, {
         method: 'POST',
-        credentials: 'include',
     });
     return res.json();
 }
 
 export async function getMe() {
-    const res = await fetch(`${API_URL}/api/auth/me`, {
-        credentials: 'include',
-    });
+    const res = await authFetch(`${API_URL}/api/auth/me`);
     return res.json();
 }
 
 export async function changePassword(currentPassword: string, newPassword: string) {
-    const res = await fetch(`${API_URL}/api/auth/change-password`, {
+    const res = await authFetch(`${API_URL}/api/auth/change-password`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
     });
     return res.json();
 }
 
 export async function deactivateAccount(password: string) {
-    const res = await fetch(`${API_URL}/api/auth/deactivate`, {
+    const res = await authFetch(`${API_URL}/api/auth/deactivate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ password }),
     });
     return res.json();
 }
 
 export async function reactivateAccount(email: string, password: string) {
-    const res = await fetch(`${API_URL}/api/auth/reactivate`, {
+    const res = await authFetch(`${API_URL}/api/auth/reactivate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ email, password }),
     });
     return res.json();
@@ -232,59 +265,76 @@ export async function reactivateAccount(email: string, password: string) {
 /* ─── Cart ─── */
 
 export async function createCart(customerId?: string) {
-    console.log("cart created");
-    const res = await fetch(`${API_URL}/api/cart`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ customer_id: customerId }),
-    });
-    return res.json();
+    try {
+        const res = await authFetch(`${API_URL}/api/cart`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ customer_id: customerId }),
+        });
+        return res.json();
+    } catch (error) {
+        console.warn('[API] createCart failed:', error);
+        return { success: false, message: 'Network error' };
+    }
 }
 
 export async function getCart(params: { cart_id?: string; customer_id?: string }) {
-    const searchParams = new URLSearchParams();
-    if (params.cart_id) searchParams.set('cart_id', params.cart_id);
-    if (params.customer_id) searchParams.set('customer_id', params.customer_id);
-    const res = await fetch(`${API_URL}/api/cart?${searchParams.toString()}`, {
-        credentials: 'include',
-    });
-    return res.json();
+    try {
+        const searchParams = new URLSearchParams();
+        if (params.cart_id) searchParams.set('cart_id', params.cart_id);
+        if (params.customer_id) searchParams.set('customer_id', params.customer_id);
+        const res = await authFetch(`${API_URL}/api/cart?${searchParams.toString()}`);
+        return res.json();
+    } catch (error) {
+        console.warn('[API] getCart failed:', error);
+        return { success: false, message: 'Network error' };
+    }
 }
 
 export async function addCartItem(cartId: string, itemId: string, quantity: number, isVariant = true) {
-    const body: Record<string, unknown> = { cart_id: cartId, quantity };
-    // Backend accepts either variant_id or product_id
-    if (isVariant) {
-        body.variant_id = itemId;
-    } else {
-        body.product_id = itemId;
+    try {
+        const body: Record<string, unknown> = { cart_id: cartId, quantity };
+        if (isVariant) {
+            body.variant_id = itemId;
+        } else {
+            body.product_id = itemId;
+        }
+        const res = await authFetch(`${API_URL}/api/cart/items`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        return res.json();
+    } catch (error) {
+        console.warn('[API] addCartItem failed:', error);
+        return { success: false, message: 'Network error' };
     }
-    const res = await fetch(`${API_URL}/api/cart/items`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(body),
-    });
-    return res.json();
 }
 
 export async function updateCartItem(itemId: string, quantity: number) {
-    const res = await fetch(`${API_URL}/api/cart/items/${itemId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ quantity }),
-    });
-    return res.json();
+    try {
+        const res = await authFetch(`${API_URL}/api/cart/items/${itemId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ quantity }),
+        });
+        return res.json();
+    } catch (error) {
+        console.warn('[API] updateCartItem failed:', error);
+        return { success: false, message: 'Network error' };
+    }
 }
 
 export async function removeCartItem(itemId: string) {
-    const res = await fetch(`${API_URL}/api/cart/items/${itemId}`, {
-        method: 'DELETE',
-        credentials: 'include',
-    });
-    return res.json();
+    try {
+        const res = await authFetch(`${API_URL}/api/cart/items/${itemId}`, {
+            method: 'DELETE',
+        });
+        return res.json();
+    } catch (error) {
+        console.warn('[API] removeCartItem failed:', error);
+        return { success: false, message: 'Network error' };
+    }
 }
 
 /* ─── Orders ─── */
@@ -302,112 +352,124 @@ export async function directCheckout(data: {
     payment_method?: string;
     order_notes?: string;
 }) {
-    const res = await fetch(`${API_URL}/api/orders/direct`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(data),
-    });
-    return res.json();
+    try {
+        const res = await authFetch(`${API_URL}/api/orders/direct`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+        });
+        return res.json();
+    } catch (error) {
+        console.warn('[API] directCheckout failed:', error);
+        return { success: false, message: 'Network error' };
+    }
 }
 
 /** Cart-based checkout (requires backend cart_id + customer_id). */
 export async function checkoutOrder(data: { cart_id: string; customer_id: string; shipping_address_id?: string }) {
-    const res = await fetch(`${API_URL}/api/orders/checkout`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(data),
-    });
-    return res.json();
+    try {
+        const res = await authFetch(`${API_URL}/api/orders/checkout`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+        });
+        return res.json();
+    } catch (error) {
+        console.warn('[API] checkoutOrder failed:', error);
+        return { success: false, message: 'Network error' };
+    }
 }
 
 export async function getMyOrders(customerId: string) {
-    const res = await fetch(`${API_URL}/api/orders?customer_id=${customerId}`, {
-        credentials: 'include',
-    });
-    return res.json();
+    try {
+        const res = await authFetch(`${API_URL}/api/orders/my`);
+        return res.json();
+    } catch (error) {
+        console.warn('[API] getMyOrders failed:', error);
+        return { success: false, data: [] };
+    }
 }
 
 /* ─── Customers ─── */
 
 export async function getCustomerProfile(id: string) {
-    const res = await fetch(`${API_URL}/api/customers/${id}`, { credentials: 'include' });
-    return res.json();
+    try {
+        const res = await authFetch(`${API_URL}/api/customers/${id}`);
+        return res.json();
+    } catch (error) {
+        console.warn('[API] getCustomerProfile failed:', error);
+        return { success: false, data: null };
+    }
 }
 
 export async function updateCustomerProfile(id: string, data: Record<string, unknown>) {
-    const res = await fetch(`${API_URL}/api/customers/${id}`, {
+    const res = await authFetch(`${API_URL}/api/customers/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify(data),
     });
     return res.json();
 }
 
 export async function verifyAge(customerId: string) {
-    const res = await fetch(`${API_URL}/api/customers/${customerId}/verify-age`, {
+    const res = await authFetch(`${API_URL}/api/customers/${customerId}/verify-age`, {
         method: 'POST',
-        credentials: 'include',
     });
     return res.json();
 }
 
 export async function uploadProfileImage(customerId: string, base64Image: string) {
-    const res = await fetch(`${API_URL}/api/customers/${customerId}/profile-image`, {
+    const res = await authFetch(`${API_URL}/api/customers/${customerId}/profile-image`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ image: base64Image }),
     });
     return res.json();
 }
 
 export async function getProfileImage(customerId: string) {
-    const res = await fetch(`${API_URL}/api/customers/${customerId}/profile-image`, {
-        credentials: 'include',
-    });
+    const res = await authFetch(`${API_URL}/api/customers/${customerId}/profile-image`);
     return res.json();
 }
 
 export async function removeProfileImage(customerId: string) {
-    const res = await fetch(`${API_URL}/api/customers/${customerId}/profile-image`, {
+    const res = await authFetch(`${API_URL}/api/customers/${customerId}/profile-image`, {
         method: 'DELETE',
-        credentials: 'include',
     });
     return res.json();
 }
 
 export async function getAddresses(customerId: string) {
-    const res = await fetch(`${API_URL}/api/customers/${customerId}/addresses`, { credentials: 'include' });
-    return res.json();
+    try {
+        const res = await authFetch(`${API_URL}/api/customers/${customerId}/addresses`);
+        return res.json();
+    } catch (error) {
+        console.warn('[API] getAddresses failed:', error);
+        return { success: false, data: [] };
+    }
 }
 
 export async function addAddress(customerId: string, address: Record<string, string>) {
-    const res = await fetch(`${API_URL}/api/customers/${customerId}/addresses`, {
+    const res = await authFetch(`${API_URL}/api/customers/${customerId}/addresses`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify(address),
     });
     return res.json();
 }
 
 export async function updateAddress(customerId: string, addressId: string, data: Record<string, string>) {
-    const res = await fetch(`${API_URL}/api/customers/${customerId}/addresses/${addressId}`, {
+    const res = await authFetch(`${API_URL}/api/customers/${customerId}/addresses/${addressId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify(data),
     });
     return res.json();
 }
 
 export async function deleteAddress(customerId: string, addressId: string) {
-    const res = await fetch(`${API_URL}/api/customers/${customerId}/addresses/${addressId}`, {
+    const res = await authFetch(`${API_URL}/api/customers/${customerId}/addresses/${addressId}`, {
         method: 'DELETE',
-        credentials: 'include',
     });
     return res.json();
 }
@@ -430,29 +492,27 @@ export async function getRatingSummary(productId: string) {
 }
 
 export async function submitReview(data: { product_id: string; rating: number; title?: string; body?: string; order_id?: string }) {
-    const res = await fetch(`${API_URL}/api/reviews`, {
+    const res = await authFetch(`${API_URL}/api/reviews`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify(data),
     });
     return res.json();
 }
 
 export async function getMyReviews() {
-    const res = await fetch(`${API_URL}/api/reviews/my`, { credentials: 'include' });
+    const res = await authFetch(`${API_URL}/api/reviews/my`);
     return res.json();
 }
 
 export async function getMyReviewForProduct(productId: string) {
-    const res = await fetch(`${API_URL}/api/reviews/my/${productId}`, { credentials: 'include' });
+    const res = await authFetch(`${API_URL}/api/reviews/my/${productId}`);
     return res.json();
 }
 
 export async function deleteReview(reviewId: string) {
-    const res = await fetch(`${API_URL}/api/reviews/${reviewId}`, {
+    const res = await authFetch(`${API_URL}/api/reviews/${reviewId}`, {
         method: 'DELETE',
-        credentials: 'include',
     });
     return res.json();
 }
@@ -465,39 +525,61 @@ export async function markReviewHelpful(reviewId: string) {
 /* ─── Wishlist ─── */
 
 export async function getWishlist() {
-    const res = await fetch(`${API_URL}/api/wishlist`, { credentials: 'include' });
-    return res.json();
+    try {
+        const res = await authFetch(`${API_URL}/api/wishlist`);
+        return res.json();
+    } catch (error) {
+        console.warn('[API] getWishlist failed:', error);
+        return { success: false, data: [] };
+    }
 }
 
 export async function addToWishlist(productId: string, variantId?: string) {
-    const res = await fetch(`${API_URL}/api/wishlist`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ product_id: productId, variant_id: variantId }),
-    });
-    return res.json();
+    try {
+        const res = await authFetch(`${API_URL}/api/wishlist`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ product_id: productId, variant_id: variantId }),
+        });
+        return res.json();
+    } catch (error) {
+        console.warn('[API] addToWishlist failed:', error);
+        return { success: false, message: 'Network error' };
+    }
 }
 
 export async function removeFromWishlist(productId: string) {
-    const res = await fetch(`${API_URL}/api/wishlist/${productId}`, {
-        method: 'DELETE',
-        credentials: 'include',
-    });
-    return res.json();
+    try {
+        const res = await authFetch(`${API_URL}/api/wishlist/${productId}`, {
+            method: 'DELETE',
+        });
+        return res.json();
+    } catch (error) {
+        console.warn('[API] removeFromWishlist failed:', error);
+        return { success: false, message: 'Network error' };
+    }
 }
 
 export async function checkInWishlist(productId: string) {
-    const res = await fetch(`${API_URL}/api/wishlist/check/${productId}`, { credentials: 'include' });
-    return res.json();
+    try {
+        const res = await authFetch(`${API_URL}/api/wishlist/check/${productId}`);
+        return res.json();
+    } catch (error) {
+        console.warn('[API] checkInWishlist failed:', error);
+        return { success: false, data: { in_wishlist: false } };
+    }
 }
 
 export async function clearWishlist() {
-    const res = await fetch(`${API_URL}/api/wishlist`, {
-        method: 'DELETE',
-        credentials: 'include',
-    });
-    return res.json();
+    try {
+        const res = await authFetch(`${API_URL}/api/wishlist`, {
+            method: 'DELETE',
+        });
+        return res.json();
+    } catch (error) {
+        console.warn('[API] clearWishlist failed:', error);
+        return { success: false, message: 'Network error' };
+    }
 }
 
 /* ─── Categories ─── */

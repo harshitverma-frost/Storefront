@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
+import { authFetch } from '@/lib/api';
 
 interface AuthContextType {
     user: UserInfo | null;
@@ -37,6 +38,7 @@ interface UserInfo {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://ecommerce-backend-h23p.onrender.com';
 const USER_KEY = 'ksp_wines_user';
+const TOKEN_KEY = 'ksp_wines_token';
 
 /** Map backend customer shape → frontend UserInfo */
 function toUserInfo(customer: Record<string, unknown>): UserInfo {
@@ -72,7 +74,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         const stored = localStorage.getItem(USER_KEY);
-        if (stored) {
+        const storedToken = localStorage.getItem(TOKEN_KEY);
+
+        if (stored && storedToken) {
             try {
                 const cachedUser: UserInfo = JSON.parse(stored);
                 setUser(cachedUser);
@@ -81,7 +85,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 setTimeout(() => notifyListeners('login', cachedUser), 0);
             } catch {
                 localStorage.removeItem(USER_KEY);
+                localStorage.removeItem(TOKEN_KEY);
             }
+        } else if (stored && !storedToken) {
+            // Force logout if token is missing (old session before token fix)
+            localStorage.removeItem(USER_KEY);
         }
         setIsLoading(false);
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -100,6 +108,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 const u = toUserInfo(json.data.customer);
                 setUser(u);
                 localStorage.setItem(USER_KEY, JSON.stringify(u));
+                if (json.data.access_token) {
+                    localStorage.setItem(TOKEN_KEY, json.data.access_token);
+                }
                 notifyListeners('login', u);
                 return { success: true, role: u.role, access_token: json.data.access_token };
             }
@@ -129,6 +140,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 const u = toUserInfo(customer);
                 setUser(u);
                 localStorage.setItem(USER_KEY, JSON.stringify(u));
+                if (json.data.access_token) {
+                    localStorage.setItem(TOKEN_KEY, json.data.access_token);
+                }
                 notifyListeners('login', u);
                 return { success: true, customer };
             }
@@ -144,13 +158,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         fetch(`${API_URL}/api/auth/logout`, { method: 'POST', credentials: 'include' }).catch(() => { });
         setUser(null);
         localStorage.removeItem(USER_KEY);
+        localStorage.removeItem(TOKEN_KEY);
         notifyListeners('logout', null);
     }, [notifyListeners]);
 
     const verifyUserAge = useCallback(async (dateOfBirth: string) => {
         if (!user?.id) return { success: false, error: "User not logged in" };
         try {
-            const res = await fetch(`${API_URL}/api/customers/${user.id}/verify-age`, {
+            const res = await authFetch(`${API_URL}/api/customers/${user.id}/verify-age`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ date_of_birth: dateOfBirth }),

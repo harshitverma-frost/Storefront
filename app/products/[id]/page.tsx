@@ -88,7 +88,9 @@ export default function ProductDetailPage({ params }: Props) {
         product.price ??
         Math.floor(Math.random() * 500000 + 100000);
 
-    const images = product.assets?.map(a => a.asset_url).filter(Boolean) || [];
+    const images = product.assets
+        ?.map(a => a.base64_data || a.asset_url)
+        .filter(Boolean) as string[] || [];
 
     const handleAddToCart = () => {
         if (!product) return;

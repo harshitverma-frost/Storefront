@@ -74,9 +74,10 @@ export default function AccountPage() {
         setOrdersLoading(true);
         try {
             const res = await getMyOrders(user.id);
-            if (res.success && Array.isArray(res.data)) {
-                setOrders(res.data);
-                setOrderCount(res.data.length);
+            if (res.success) {
+                const ordersArray = Array.isArray(res.data) ? res.data : Array.isArray(res.data?.orders) ? res.data.orders : [];
+                setOrders(ordersArray);
+                setOrderCount(ordersArray.length);
             }
         } catch (err) {
             console.error('Failed to fetch orders:', err);

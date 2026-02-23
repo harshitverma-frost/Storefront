@@ -155,21 +155,23 @@ function LoginContent() {
                         isAdminRedirecting.current = true;
                         toast.success('Welcome, Admin! Redirecting to dashboard...');
                         // Build auto-login URL with user info for admin panel
+                        // Read from the AuthContext localStorage key
+                        let userName = form.email.split('@')[0];
+                        let userId = '';
+                        try {
+                            const stored = localStorage.getItem('ksp_wines_user');
+                            if (stored) {
+                                const userData = JSON.parse(stored);
+                                userName = userData.name || userName;
+                                userId = userData.id || '';
+                            }
+                        } catch { /* noop */ }
                         const params = new URLSearchParams({
                             token: result.access_token || '',
                             email: form.email,
-                            name: result.role || '',
-                            id: '',
+                            name: userName,
+                            id: userId,
                         });
-                        // Get user info from localStorage for the ID
-                        try {
-                            const stored = localStorage.getItem('ksp_user');
-                            if (stored) {
-                                const userData = JSON.parse(stored);
-                                params.set('name', userData.name || form.email.split('@')[0]);
-                                params.set('id', userData.id || '');
-                            }
-                        } catch { /* noop */ }
                         window.location.href = `${ADMIN_URL}/auto-login?${params.toString()}`;
                         return;
                     }

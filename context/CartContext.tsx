@@ -19,12 +19,23 @@ interface CartContextType {
     addItem: (productId: string, variantId: string | null, quantity?: number) => Promise<void>;
     removeItem: (cartItemId: string) => Promise<void>;
     updateQuantity: (cartItemId: string, quantity: number) => Promise<void>;
-    clearCart: () => Promise<void>;
+    clearCart: (localOnly?: boolean) => Promise<void>;
     totalItems: number;
     totalPrice: number;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
+
+/** Flatten backend cart item → easy-to-consume shape with top-level product_id, product_name, price */
+function flattenCartItem(item: BackendCartItem): BackendCartItem {
+    return {
+        ...item,
+        product_id: item.product?.product_id || item.product_id || '',
+        product_name: item.product?.product_name || item.product_name || 'Product',
+        price: item.pricing?.effective_price ?? item.pricing?.unit_price ?? item.price ?? 0,
+        size_label: item.variant?.size_label || item.size_label || '',
+    };
+}
 
 export function CartProvider({ children }: { children: ReactNode }) {
     const [items, setItems] = useState<BackendCartItem[]>([]);
@@ -41,9 +52,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
             const res = await apiGetCart({ cart_id: cId });
             if (res.success && res.data) {
                 const cart = res.data as BackendCart;
-                setItems(cart.items || []);
-                setTotalItems(cart.total_items || 0);
-                setTotalPrice(cart.total_amount || 0);
+                const flatItems = (cart.items || []).map(flattenCartItem);
+                setItems(flatItems);
+                setTotalItems(cart.summary?.item_count ?? cart.total_items ?? flatItems.reduce((s, i) => s + i.quantity, 0));
+                setTotalPrice(cart.summary?.grand_total ?? cart.total_amount ?? flatItems.reduce((s, i) => s + (i.price || 0) * i.quantity, 0));
             }
         } catch (err) {
             console.error('[CartContext] fetchCart error:', err);
@@ -59,9 +71,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
             if (getRes.success && getRes.data) {
                 const cart = getRes.data as BackendCart;
                 setCartId(cart.cart_id);
-                setItems(cart.items || []);
-                setTotalItems(cart.total_items || 0);
-                setTotalPrice(cart.total_amount || 0);
+                const flatItems = (cart.items || []).map(flattenCartItem);
+                setItems(flatItems);
+                setTotalItems(cart.summary?.item_count ?? cart.total_items ?? flatItems.reduce((s, i) => s + i.quantity, 0));
+                setTotalPrice(cart.summary?.grand_total ?? cart.total_amount ?? flatItems.reduce((s, i) => s + (i.price || 0) * i.quantity, 0));
             } else {
                 const createRes = await apiCreateCart(customerId);
                 if (createRes.success && createRes.data) {
@@ -154,12 +167,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
         }
     }, [cartId, fetchCart]);
 
-    const clearCart = useCallback(async () => {
+    const clearCart = useCallback(async (localOnly = false) => {
         if (!cartId) return;
         setLoading(true);
         try {
-            for (const item of items) {
-                await apiRemoveCartItem(item.cart_item_id);
+            if (!localOnly) {
+                for (const item of items) {
+                    await apiRemoveCartItem(item.cart_item_id);
+                }
             }
             setItems([]);
             setTotalItems(0);

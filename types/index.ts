@@ -108,6 +108,11 @@ export interface ProductAsset {
     product_id: string;
     asset_type?: string;
     asset_url?: string;
+    base64_data?: string;
+    mime_type?: string;
+    is_primary?: boolean;
+    file_name?: string;
+    sort_order?: number;
     created_at?: string;
 }
 
@@ -121,10 +126,36 @@ export interface ApiResponse<T = unknown> {
 
 export interface BackendCartItem {
     cart_item_id: string;
-    cart_id: string;
     variant_id?: string;
-    product_id?: string;
     quantity: number;
+    added_at?: string;
+    product?: {
+        product_id: string;
+        product_name: string;
+        brand?: string;
+        category?: string;
+        product_sku?: string;
+    };
+    variant?: {
+        size_label?: string;
+        volume_ml?: number;
+        variant_sku?: string;
+        alcohol_percentage?: number;
+        is_active?: boolean;
+        stock_quantity?: number;
+    };
+    pricing?: {
+        unit_price: number;
+        discounted_price: number | null;
+        effective_price: number;
+        tax_percentage: number;
+        line_subtotal: number;
+        line_tax: number;
+        line_total: number;
+        currency?: string;
+    };
+    /* Convenience getters added by frontend (computed) */
+    product_id?: string;
     product_name?: string;
     price?: number;
     size_label?: string;
@@ -135,9 +166,18 @@ export interface BackendCartItem {
 export interface BackendCart {
     cart_id: string;
     customer_id?: string;
+    created_at?: string;
     items: BackendCartItem[];
-    total_amount: number;
-    total_items: number;
+    summary?: {
+        item_count: number;
+        unique_items: number;
+        subtotal: number;
+        total_tax: number;
+        grand_total: number;
+    };
+    /* Legacy flat fields (fallback) */
+    total_amount?: number;
+    total_items?: number;
 }
 
 /** Legacy CartItem shape — kept for backward compat on ProductCard */
