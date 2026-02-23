@@ -325,9 +325,19 @@ function LoginContent() {
                         </div>
 
                         <div className="mb-6">
-                            <label className="block text-sm font-medium text-charcoal mb-1">
-                                Password
-                            </label>
+                            <div className="flex items-center justify-between mb-1">
+                                <label className="block text-sm font-medium text-charcoal">
+                                    Password
+                                </label>
+                                {!isRegister && loginMode === 'customer' && (
+                                    <Link
+                                        href="/forgot-password"
+                                        className="text-xs font-semibold text-burgundy hover:text-burgundy-dark transition-colors"
+                                    >
+                                        Forgot Password?
+                                    </Link>
+                                )}
+                            </div>
                             <input
                                 type="password"
                                 value={form.password}
