@@ -56,7 +56,7 @@ export async function getProducts(params?: {
 
         return products.map(p => ({
             ...p,
-            images: p.thumbnail_base64 ? [p.thumbnail_base64] : []
+            images: p.thumbnail_url ? [p.thumbnail_url] : []
         }));
     } catch (error) {
         console.warn('[API] Failed to fetch products. Backend might be unreachable.');
@@ -109,7 +109,7 @@ export async function getFilteredProducts(
             return {
                 data: data.map((p: any) => ({
                     ...p,
-                    images: p.thumbnail_base64 ? [p.thumbnail_base64] : []
+                    images: p.thumbnail_url ? [p.thumbnail_url] : []
                 })),
                 meta: json.meta ?? { total_count: 0, page: 1, limit: 20, total_pages: 0, has_next_page: false, has_prev_page: false, filters_applied: {}, sort: 'newest', cache_hit: false },
             };
@@ -147,7 +147,7 @@ export async function getProduct(id: string): Promise<Product | null> {
         const json: ApiResponse<any> = await res.json();
         if (json.success && json.data) {
             const p = json.data;
-            return { ...p, images: p.thumbnail_base64 ? [p.thumbnail_base64] : [] };
+            return { ...p, images: p.thumbnail_url ? [p.thumbnail_url] : [] };
         }
         return null;
     } catch (error) {
@@ -174,7 +174,7 @@ export async function searchProducts(query: string): Promise<Product[]> {
         if (json.success && json.data) {
             return json.data.map((p: any) => ({
                 ...p,
-                images: p.thumbnail_base64 ? [p.thumbnail_base64] : []
+                images: p.thumbnail_url ? [p.thumbnail_url] : []
             }));
         }
         return [];

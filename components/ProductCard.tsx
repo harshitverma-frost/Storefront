@@ -16,6 +16,7 @@ interface ProductCardProps {
 export default function ProductCard({ product }: ProductCardProps) {
     const { isInWishlist, toggleItem } = useWishlist();
     const wishlisted = isInWishlist(product.product_id);
+    const [activeImageIndex, setActiveImageIndex] = useState(0);
 
     const [avgRating, setAvgRating] = useState(0);
     const [totalReviews, setTotalReviews] = useState(0);
@@ -46,7 +47,13 @@ export default function ProductCard({ product }: ProductCardProps) {
                 {/* Image Section */}
                 <div className="relative h-72 overflow-hidden bg-gradient-to-br from-[#f8f5f2] to-[#efe7df]">
                     <div className="absolute inset-0 flex items-center justify-center">
-                        {product.images && product.images.length > 0 ? (
+                        <img
+                            src={product.images?.[activeImageIndex] || "/card-drink.webp"}
+                            alt={product.product_name}
+                            className="object-contain h-full w-full"
+                        />
+
+                        {/* {product.images && product.images.length > 0 ? (
                             <img
                                 src={product.images[0]}
                                 alt={product.product_name}
@@ -56,7 +63,7 @@ export default function ProductCard({ product }: ProductCardProps) {
                             <span className="text-[110px] transition-transform duration-700 group-hover:scale-110">
                                 <img src="/card-drink.webp" alt="" />
                             </span>
-                        )}
+                        )} */}
                     </div>
 
                     {/* reflection overlay */}
