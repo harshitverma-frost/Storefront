@@ -262,6 +262,56 @@ export async function reactivateAccount(email: string, password: string) {
     return res.json();
 }
 
+export async function forgotPassword(email: string) {
+    const res = await fetch(`${API_URL}/api/auth/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+    });
+    return res.json();
+}
+
+export async function resetPassword(token: string, new_password: string) {
+    const res = await fetch(`${API_URL}/api/auth/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, new_password }),
+    });
+    return res.json();
+}
+
+export async function sendVerificationEmail() {
+    const res = await authFetch(`${API_URL}/api/auth/send-verification-email`, {
+        method: 'POST',
+    });
+    return res.json();
+}
+
+export async function verifyEmail(token: string) {
+    const res = await fetch(`${API_URL}/api/auth/verify-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token }),
+    });
+    return res.json();
+}
+
+export async function sendOtp() {
+    const res = await authFetch(`${API_URL}/api/auth/send-otp`, {
+        method: 'POST',
+    });
+    return res.json();
+}
+
+export async function verifyOtp(otp_code: string) {
+    const res = await authFetch(`${API_URL}/api/auth/verify-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ otp_code }),
+    });
+    return res.json();
+}
+
 /* ─── Cart ─── */
 
 export async function createCart(customerId?: string) {
