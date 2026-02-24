@@ -15,6 +15,7 @@ import { Order, Address } from '@/types';
 import {
     Package, MapPin, Heart, LogOut, User, Plus, Pencil, Trash2,
     Loader2, ShieldOff, Camera, X, Check, Star, Phone, Calendar, Mail,
+    CheckCircle2, Smartphone, AlertCircle,
 } from 'lucide-react';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import toast from 'react-hot-toast';
@@ -47,6 +48,7 @@ export default function AccountPage() {
     const [profileSaving, setProfileSaving] = useState(false);
     const [profileData, setProfileData] = useState({
         full_name: '', email: '', phone: '', date_of_birth: '',
+        is_email_verified: false, is_mobile_verified: false,
     });
 
     // Profile image state
@@ -113,6 +115,8 @@ export default function AccountPage() {
                     email: res.data.email || '',
                     phone: res.data.phone || '',
                     date_of_birth: res.data.date_of_birth ? res.data.date_of_birth.split('T')[0] : '',
+                    is_email_verified: !!res.data.is_email_verified,
+                    is_mobile_verified: !!res.data.is_mobile_verified,
                 });
             }
         } catch (err) {
@@ -804,6 +808,67 @@ export default function AccountPage() {
                                                 </p>
                                             )}
                                         </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* ── Verification Status ── */}
+                        <div className="rounded-2xl border border-light-border bg-white overflow-hidden shadow-sm">
+                            <div className="h-1" style={{ background: 'linear-gradient(90deg, #6B2737, #D4A847)' }} />
+                            <div className="p-6">
+                                <h3 className="font-serif text-base font-bold text-charcoal mb-4">Verification Status</h3>
+                                <div className="space-y-3">
+                                    {/* Email Verification */}
+                                    <div className="flex items-center justify-between py-3 px-4 rounded-xl bg-cream/50 border border-light-border">
+                                        <div className="flex items-center gap-3">
+                                            <div className={`flex h-9 w-9 items-center justify-center rounded-full ${profileData.is_email_verified ? 'bg-green-100' : 'bg-amber-100'}`}>
+                                                <Mail className={`h-4 w-4 ${profileData.is_email_verified ? 'text-green-600' : 'text-amber-600'}`} />
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-medium text-charcoal">Email Address</p>
+                                                <p className="text-xs text-warm-gray">{profileData.email}</p>
+                                            </div>
+                                        </div>
+                                        {profileData.is_email_verified ? (
+                                            <span className="flex items-center gap-1.5 rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">
+                                                <CheckCircle2 className="h-3.5 w-3.5" /> Verified
+                                            </span>
+                                        ) : (
+                                            <button
+                                                onClick={() => router.push('/verify-email')}
+                                                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition-all hover:shadow-md"
+                                                style={{ backgroundColor: '#D4A847' }}
+                                            >
+                                                <AlertCircle className="h-3.5 w-3.5" /> Verify Now
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    {/* Mobile Verification */}
+                                    <div className="flex items-center justify-between py-3 px-4 rounded-xl bg-cream/50 border border-light-border">
+                                        <div className="flex items-center gap-3">
+                                            <div className={`flex h-9 w-9 items-center justify-center rounded-full ${profileData.is_mobile_verified ? 'bg-green-100' : 'bg-amber-100'}`}>
+                                                <Smartphone className={`h-4 w-4 ${profileData.is_mobile_verified ? 'text-green-600' : 'text-amber-600'}`} />
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-medium text-charcoal">Mobile Number</p>
+                                                <p className="text-xs text-warm-gray">{profileData.phone || 'Not provided'}</p>
+                                            </div>
+                                        </div>
+                                        {profileData.is_mobile_verified ? (
+                                            <span className="flex items-center gap-1.5 rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">
+                                                <CheckCircle2 className="h-3.5 w-3.5" /> Verified
+                                            </span>
+                                        ) : (
+                                            <button
+                                                onClick={() => router.push('/verify-otp')}
+                                                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition-all hover:shadow-md"
+                                                style={{ backgroundColor: '#D4A847' }}
+                                            >
+                                                <AlertCircle className="h-3.5 w-3.5" /> Verify Now
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
                             </div>

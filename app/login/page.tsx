@@ -30,6 +30,7 @@ function LoginContent() {
     const [loginMode, setLoginMode] = useState<LoginMode>('customer');
     const [isRegister, setIsRegister] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [isRedirecting, setIsRedirecting] = useState(false);
     const [form, setForm] = useState({ name: '', email: '', password: '' });
 
     // Prevents the isAuthenticated useEffect from redirecting to /account
@@ -98,8 +99,27 @@ function LoginContent() {
         }
     }, [isAuthenticated, user, router]);
 
-    if (isAuthenticated && !isAdminRedirecting.current) {
-        return null;
+    if (isAuthenticated && !isAdminRedirecting.current || isRedirecting) {
+        return (
+            <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-cream/90 backdrop-blur-md animate-in fade-in duration-500">
+                <div className="relative flex h-24 w-24 items-center justify-center">
+                    {/* Outer spinning ring */}
+                    <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-burgundy border-r-burgundy/50 animate-spin" />
+                    {/* Inner pulsing circle */}
+                    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-burgundy/10 animate-pulse">
+                        <Wine className="h-8 w-8 text-burgundy" />
+                    </div>
+                </div>
+                <div className="mt-8 flex flex-col items-center space-y-2">
+                    <h2 className="font-serif text-2xl font-bold text-charcoal tracking-tight animate-in slide-in-from-bottom-2 fade-in duration-700">
+                        Securing your session
+                    </h2>
+                    <p className="text-sm font-medium text-warm-gray animate-pulse">
+                        Please wait while we prepare your account...
+                    </p>
+                </div>
+            </div>
+        );
     }
 
     // ── Mode tabs config ─────────────────────────────────────────────
@@ -140,8 +160,12 @@ function LoginContent() {
                     } else {
                         console.warn("⚠️ customer_id missing from register response");
                     }
-                    toast.success('Account created!');
-                    router.push('/account');
+                    toast.success('Account created! Please verify your email.');
+                    setIsRedirecting(true);
+                    // Add artificial delay to extend loader screen viewing as requested
+                    setTimeout(() => {
+                        router.push(`/verify-email?registered=true&email=${encodeURIComponent(form.email)}`);
+                    }, 1500);
                 } else {
                     toast.error(result?.error || 'Something went wrong');
                 }
@@ -176,6 +200,7 @@ function LoginContent() {
                         return;
                     }
                     toast.success('Welcome back!');
+                    setIsRedirecting(true);
                     router.push('/account');
                 } else {
                     // If the user selected admin mode but has customer role

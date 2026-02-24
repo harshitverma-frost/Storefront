@@ -33,6 +33,8 @@ interface UserInfo {
     email: string;
     role?: string;
     is_age_verified?: boolean;
+    is_email_verified?: boolean;
+    is_mobile_verified?: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -48,6 +50,8 @@ function toUserInfo(customer: Record<string, unknown>): UserInfo {
         email: (customer.email ?? '') as string,
         role: (customer.role as string) || 'customer',
         is_age_verified: !!(customer.is_age_verified),
+        is_email_verified: !!(customer.is_email_verified),
+        is_mobile_verified: !!(customer.is_mobile_verified),
     };
 }
 
@@ -137,13 +141,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const json = await res.json();
             if (res.ok && json.success && json.data?.customer) {
                 const customer = json.data.customer;
-                const u = toUserInfo(customer);
-                setUser(u);
-                localStorage.setItem(USER_KEY, JSON.stringify(u));
-                if (json.data.access_token) {
-                    localStorage.setItem(TOKEN_KEY, json.data.access_token);
-                }
-                notifyListeners('login', u);
                 return { success: true, customer };
             }
             if (json.message) return { success: false, error: json.message };

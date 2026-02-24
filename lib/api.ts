@@ -280,18 +280,25 @@ export async function resetPassword(token: string, new_password: string) {
     return res.json();
 }
 
-export async function sendVerificationEmail() {
-    const res = await authFetch(`${API_URL}/api/auth/send-verification-email`, {
+export async function sendVerificationEmail(email?: string) {
+    // If an email is provided, we send it in the body (unauthenticated flow).
+    // Otherwise, we rely on the auth cookies (which `authFetch` handles under the hood if it was protected, 
+    // but standard `fetch` with `credentials: 'include'` will do the same).
+    const res = await fetch(`${API_URL}/api/auth/send-verification-email`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: email ? JSON.stringify({ email }) : undefined,
     });
     return res.json();
 }
 
-export async function verifyEmail(token: string) {
+export async function verifyEmail(otp_code: string, email?: string) {
     const res = await fetch(`${API_URL}/api/auth/verify-email`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token }),
+        credentials: 'include',
+        body: JSON.stringify({ otp_code, email }),
     });
     return res.json();
 }

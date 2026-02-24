@@ -1,205 +1,256 @@
 'use client';
 
-import { useState, useRef, useEffect, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { verifyOtp, sendOtp } from '@/lib/api';
-import toast from 'react-hot-toast';
-import { Smartphone, RotateCcw } from 'lucide-react';
-import Link from 'next/link';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
+import { sendOtp, verifyOtp } from '@/lib/api';
+import { Smartphone, Loader2, CheckCircle2, XCircle, ArrowLeft, RefreshCw } from 'lucide-react';
+import toast from 'react-hot-toast';
 
-function VerifyOTPContent() {
+export default function VerifyOtpPage() {
     const router = useRouter();
-    const searchParams = useSearchParams();
-    const methodFromParams = searchParams.get('method') || 'sms';
-
-    // Auth context to ensure user is logged in (as verify_otp is a protected route in backend)
-    const { isAuthenticated, user, isLoading: authLoading } = useAuth();
+    const { user, isAuthenticated, isLoading: authLoading } = useAuth();
 
     const [otp, setOtp] = useState(['', '', '', '', '', '']);
     const [loading, setLoading] = useState(false);
-    const [resendCooldown, setResendCooldown] = useState(30);
+    const [sending, setSending] = useState(false);
+    const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
+    const [errorMessage, setErrorMessage] = useState('');
+    const [cooldown, setCooldown] = useState(0);
+    const [otpSent, setOtpSent] = useState(false);
     const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
+    // Redirect if not authenticated
     useEffect(() => {
-        if (resendCooldown > 0) {
-            const timer = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000);
-            return () => clearTimeout(timer);
-        }
-    }, [resendCooldown]);
-
-    // Focus first input on mount
-    useEffect(() => {
-        if (!authLoading && isAuthenticated && inputRefs.current[0]) {
-            inputRefs.current[0].focus();
-        }
-    }, [authLoading, isAuthenticated]);
-
-    // Auth redirection
-    if (!authLoading && !isAuthenticated) {
-        if (typeof window !== 'undefined') {
+        if (!authLoading && !isAuthenticated) {
             router.push('/login');
         }
-        return null;
-    }
+    }, [authLoading, isAuthenticated, router]);
 
-    const handleChange = (index: number, value: string) => {
-        if (value.length > 1) {
-            // Handle paste
-            const pastedData = value.substring(0, 6).split('');
-            const newOtp = [...otp];
-            pastedData.forEach((char, i) => {
-                if (index + i < 6) newOtp[index + i] = char.replace(/\D/g, '');
-            });
-            setOtp(newOtp);
-            // Focus last filled input
-            const nextIndex = Math.min(index + pastedData.length, 5);
-            inputRefs.current[nextIndex]?.focus();
-            return;
+    // Cooldown timer
+    useEffect(() => {
+        if (cooldown <= 0) return;
+        const timer = setInterval(() => setCooldown(c => c - 1), 1000);
+        return () => clearInterval(timer);
+    }, [cooldown]);
+
+    // Send OTP
+    const handleSendOtp = useCallback(async () => {
+        if (sending || cooldown > 0) return;
+        setSending(true);
+        try {
+            const res = await sendOtp();
+            if (res.success) {
+                setOtpSent(true);
+                setCooldown(60);
+                toast.success('Verification code sent to your email!');
+            } else if (res.message?.includes('already verified')) {
+                setStatus('success');
+                toast.success('Mobile number is already verified!');
+            } else {
+                toast.error(res.message || 'Failed to send verification code');
+            }
+        } catch {
+            toast.error('Network error. Please try again.');
+        } finally {
+            setSending(false);
         }
+    }, [sending, cooldown]);
 
-        // Clean non-digits
-        const numValue = value.replace(/\D/g, '');
+    // Auto-send on mount
+    useEffect(() => {
+        if (isAuthenticated && !otpSent && status !== 'success') {
+            handleSendOtp();
+        }
+    }, [isAuthenticated, otpSent, status, handleSendOtp]);
+
+    // OTP input handlers
+    const handleChange = (index: number, value: string) => {
+        if (!/^\d*$/.test(value)) return;
         const newOtp = [...otp];
-        newOtp[index] = numValue;
+        newOtp[index] = value.slice(-1);
         setOtp(newOtp);
+        setErrorMessage('');
+        setStatus('idle');
 
-        // Move focus up
-        if (numValue && index < 5) {
+        if (value && index < 5) {
             inputRefs.current[index + 1]?.focus();
         }
     };
 
-    const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    const handleKeyDown = (index: number, e: React.KeyboardEvent) => {
         if (e.key === 'Backspace' && !otp[index] && index > 0) {
             inputRefs.current[index - 1]?.focus();
         }
     };
 
-    const handleResend = async () => {
-        if (resendCooldown > 0) return;
-
-        try {
-            setResendCooldown(60); // 60s cooldown
-            const res = await sendOtp();
-            if (res.success) {
-                toast.success('A new code has been sent.');
-            } else {
-                toast.error(res.error || 'Failed to resend code');
-                setResendCooldown(0);
-            }
-        } catch {
-            toast.error('Failed to resend code');
-            setResendCooldown(0);
+    const handlePaste = (e: React.ClipboardEvent) => {
+        e.preventDefault();
+        const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+        if (pasted.length === 6) {
+            const newOtp = pasted.split('');
+            setOtp(newOtp);
+            inputRefs.current[5]?.focus();
         }
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+    // Verify OTP
+    const handleVerify = async () => {
         const code = otp.join('');
         if (code.length !== 6) {
-            toast.error('Please enter the 6-digit code');
+            setErrorMessage('Please enter the complete 6-digit code');
             return;
         }
 
         setLoading(true);
-
+        setErrorMessage('');
         try {
-            const result = await verifyOtp(code);
-            if (result?.success) {
-                toast.success('Phone verified successfully!');
-                router.push('/account');
+            const res = await verifyOtp(code);
+            if (res.success) {
+                setStatus('success');
+                toast.success('Mobile number verified successfully!');
+                setTimeout(() => router.push('/account'), 2000);
             } else {
-                // Clear inputs on failure
-                setOtp(['', '', '', '', '', '']);
-                inputRefs.current[0]?.focus();
-                toast.error(result?.error || result?.message || 'Invalid code');
+                setStatus('error');
+                setErrorMessage(res.message || 'Invalid verification code');
             }
-        } catch (error) {
-            console.error('OTP verification error:', error);
-            toast.error('Server error. Please try again.');
+        } catch {
+            setStatus('error');
+            setErrorMessage('Network error. Please try again.');
         } finally {
             setLoading(false);
         }
     };
 
+    // Auto-submit when all 6 digits
+    useEffect(() => {
+        if (otp.every(d => d !== '') && status === 'idle' && !loading) {
+            handleVerify();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [otp]);
+
+    if (authLoading) {
+        return (
+            <div className="min-h-screen bg-cream flex items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-burgundy" />
+            </div>
+        );
+    }
+
     return (
-        <div className="min-h-screen bg-cream flex flex-col items-center justify-center px-4 py-12">
+        <div className="min-h-screen bg-cream flex items-center justify-center px-4">
             <div className="w-full max-w-md">
-                <div className="text-center mb-8">
-                    <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-burgundy/10 flex items-center justify-center">
-                        <Smartphone className="w-8 h-8 text-burgundy" />
-                    </div>
-                    <h1 className="font-serif text-3xl font-bold text-charcoal">
-                        Enter Verification Code
-                    </h1>
-                    <p className="mt-2 text-sm text-warm-gray">
-                        We've sent a 6-digit code to your {methodFromParams === 'email' ? 'email address' : 'mobile phone'}.
-                    </p>
-                </div>
-
-                <form
-                    onSubmit={handleSubmit}
-                    className="rounded-2xl border border-light-border bg-white p-8 shadow-sm flex flex-col items-center"
+                {/* Back button */}
+                <button
+                    onClick={() => router.push('/account')}
+                    className="flex items-center gap-2 text-sm text-warm-gray hover:text-charcoal mb-6 transition-colors"
                 >
-                    <div className="flex gap-2 justify-center mb-8 w-full">
-                        {otp.map((digit, index) => (
-                            <input
-                                key={index}
-                                ref={(el) => {
-                                    inputRefs.current[index] = el;
-                                }}
-                                type="text"
-                                inputMode="numeric"
-                                autoComplete="one-time-code"
-                                pattern="\d*"
-                                maxLength={6}
-                                value={digit}
-                                onChange={(e) => handleChange(index, e.target.value)}
-                                onKeyDown={(e) => handleKeyDown(index, e)}
-                                className="w-12 h-14 text-center text-2xl font-bold rounded-lg border border-light-border bg-gray-50 focus:bg-white focus:border-burgundy focus:outline-none focus:ring-1 focus:ring-burgundy transition-all"
-                            />
-                        ))}
-                    </div>
+                    <ArrowLeft className="h-4 w-4" /> Back to Account
+                </button>
 
-                    <button
-                        type="submit"
-                        disabled={loading || otp.some(d => !d)}
-                        className="w-full rounded-lg bg-burgundy py-3 text-sm font-semibold text-white transition-all hover:bg-burgundy-dark disabled:opacity-50 disabled:cursor-not-allowed"
+                <div className="rounded-2xl border border-light-border bg-white overflow-hidden shadow-sm">
+                    {/* Header gradient */}
+                    <div
+                        className="py-8 px-6 text-center"
+                        style={{ background: 'linear-gradient(135deg, #6B2737 0%, #8B3A4A 40%, #D4A847 100%)' }}
                     >
-                        {loading ? 'Verifying...' : 'Verify Code'}
-                    </button>
-
-                    <div className="mt-6 flex flex-col items-center gap-3">
-                        <button
-                            type="button"
-                            onClick={handleResend}
-                            disabled={resendCooldown > 0}
-                            className={`inline-flex items-center gap-2 text-sm font-medium transition-colors ${resendCooldown > 0 ? 'text-gray-400 cursor-not-allowed' : 'text-warm-gray hover:text-burgundy'
-                                }`}
-                        >
-                            <RotateCcw className="w-4 h-4" />
-                            {resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : 'Resend code'}
-                        </button>
-
-                        <Link href="/account" className="text-sm font-medium text-warm-gray hover:text-burgundy transition-colors mt-2">
-                            Skip for now
-                        </Link>
+                        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-white/15 backdrop-blur-sm">
+                            {status === 'success' ? (
+                                <CheckCircle2 className="h-8 w-8 text-green-300" />
+                            ) : status === 'error' ? (
+                                <XCircle className="h-8 w-8 text-red-300" />
+                            ) : (
+                                <Smartphone className="h-8 w-8 text-white" />
+                            )}
+                        </div>
+                        <h1 className="font-serif text-2xl font-bold text-white">
+                            {status === 'success' ? 'Mobile Verified!' : 'Verify Mobile Number'}
+                        </h1>
+                        <p className="mt-2 text-sm text-white/80">
+                            {status === 'success'
+                                ? 'Your mobile number has been verified'
+                                : `We sent a 6-digit code to ${user?.email || 'your email'}`}
+                        </p>
                     </div>
-                </form>
+
+                    <div className="p-6">
+                        {status === 'success' ? (
+                            <div className="text-center py-4">
+                                <p className="text-sm text-warm-gray mb-4">Redirecting to your account...</p>
+                                <Loader2 className="h-5 w-5 animate-spin text-burgundy mx-auto" />
+                            </div>
+                        ) : (
+                            <>
+                                {/* OTP Input */}
+                                <div className="flex justify-center gap-3 mb-6" onPaste={handlePaste}>
+                                    {otp.map((digit, i) => (
+                                        <input
+                                            key={i}
+                                            ref={el => { inputRefs.current[i] = el; }}
+                                            type="text"
+                                            inputMode="numeric"
+                                            maxLength={1}
+                                            value={digit}
+                                            onChange={e => handleChange(i, e.target.value)}
+                                            onKeyDown={e => handleKeyDown(i, e)}
+                                            className={`w-12 h-14 text-center text-xl font-bold rounded-xl border-2 transition-all duration-200 focus:outline-none
+                                                ${status === 'error'
+                                                    ? 'border-red-300 bg-red-50 text-red-700 focus:border-red-500'
+                                                    : digit
+                                                        ? 'border-burgundy/40 bg-burgundy/5 text-charcoal focus:border-burgundy'
+                                                        : 'border-light-border bg-white text-charcoal focus:border-burgundy'
+                                                }`}
+                                            autoFocus={i === 0}
+                                        />
+                                    ))}
+                                </div>
+
+                                {/* Error message */}
+                                {errorMessage && (
+                                    <p className="text-center text-sm text-red-500 mb-4 flex items-center justify-center gap-1.5">
+                                        <XCircle className="h-3.5 w-3.5" />
+                                        {errorMessage}
+                                    </p>
+                                )}
+
+                                {/* Verify button */}
+                                <button
+                                    onClick={handleVerify}
+                                    disabled={loading || otp.some(d => d === '')}
+                                    className="w-full rounded-xl py-3 text-sm font-semibold text-white transition-all hover:shadow-md disabled:opacity-50"
+                                    style={{ backgroundColor: '#6B2737' }}
+                                >
+                                    {loading ? (
+                                        <span className="flex items-center justify-center gap-2">
+                                            <Loader2 className="h-4 w-4 animate-spin" /> Verifying...
+                                        </span>
+                                    ) : (
+                                        'Verify Mobile'
+                                    )}
+                                </button>
+
+                                {/* Resend */}
+                                <div className="text-center mt-5">
+                                    <p className="text-xs text-warm-gray mb-2">Didn&apos;t receive the code?</p>
+                                    <button
+                                        onClick={handleSendOtp}
+                                        disabled={sending || cooldown > 0}
+                                        className="inline-flex items-center gap-1.5 text-sm font-medium text-burgundy hover:text-burgundy-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        <RefreshCw className={`h-3.5 w-3.5 ${sending ? 'animate-spin' : ''}`} />
+                                        {cooldown > 0
+                                            ? `Resend in ${cooldown}s`
+                                            : sending
+                                                ? 'Sending...'
+                                                : 'Resend Code'}
+                                    </button>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                </div>
             </div>
         </div>
-    );
-}
-
-export default function VerifyOTPPage() {
-    return (
-        <Suspense fallback={
-            <div className="min-h-screen bg-cream flex items-center justify-center px-4">
-                <div className="w-8 h-8 border-2 border-burgundy/30 border-t-burgundy rounded-full animate-spin" />
-            </div>
-        }>
-            <VerifyOTPContent />
-        </Suspense>
     );
 }
