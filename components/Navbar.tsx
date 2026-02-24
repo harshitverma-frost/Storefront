@@ -1,11 +1,14 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { ShoppingCart, User, Menu, X, Heart, RefreshCw, ChevronDown } from 'lucide-react';
+import { ShoppingCart, User, Menu, X, Heart, ChevronDown } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
 import { useWishlist } from '@/context/WishlistContext';
+import { useAuth } from '@/context/AuthContext';
 import { getCategories } from '@/lib/api';
+import toast from 'react-hot-toast';
 
 interface Category {
   category_id: string;
@@ -14,9 +17,20 @@ interface Category {
 }
 
 export default function Navbar() {
+  const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { totalItems } = useCart();
   const { totalItems: wishlistCount } = useWishlist();
+  const { isAuthenticated } = useAuth();
+
+  const handleWishlistClick = () => {
+    if (isAuthenticated) {
+      router.push('/account/wishlist');
+    } else {
+      toast('Please sign in to view your wishlist');
+      router.push('/login');
+    }
+  };
   const [categories, setCategories] = useState<Category[]>([]);
 
   useEffect(() => {
@@ -40,9 +54,9 @@ export default function Navbar() {
             {/* Logo */}
             <Link href="/" className="flex-shrink-0 flex items-center gap-2">
               <img
-                src="/KSP-Wines-logo.webp"
+                src="/KSP-Wines-logo.png"
                 alt="KSP Wines"
-                className="h-36 w-auto"
+                className="h-55 w-auto"
               />
             </Link>
 
@@ -76,25 +90,21 @@ export default function Navbar() {
 
             {/* Right Icons */}
             <div className="flex items-center gap-3">
-              <Link href="/wishlist" className="relative p-2 group">
-                <Heart className="h-[18px] w-[18px] text-gray-600 group-hover:text-[#4b0f1a] transition-colors" />
+              <button onClick={handleWishlistClick} className="relative p-2 group">
+                <Heart className="h-[20px] w-[20px] text-gray-600 group-hover:text-[#4b0f1a] transition-colors" />
                 {wishlistCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 bg-[#C6A75E] text-white text-[9px] font-bold h-4 w-4 flex items-center justify-center rounded-full">
+                  <span className="absolute -top-0.5 -right-0.5 bg-[#4b0f1a] text-white text-[9px] font-bold h-4 w-4 flex items-center justify-center rounded-full">
                     {wishlistCount}
                   </span>
                 )}
-              </Link>
-
-              <Link href="/products" className="relative p-2 group">
-                <RefreshCw className="h-[18px] w-[18px] text-gray-600 group-hover:text-[#4b0f1a] transition-colors" />
-              </Link>
+              </button>
 
               <Link href="/account" className="relative p-2 group">
-                <User className="h-[18px] w-[18px] text-gray-600 group-hover:text-[#4b0f1a] transition-colors" />
+                <User className="h-[20px] w-[20px] text-gray-600 group-hover:text-[#4b0f1a] transition-colors" />
               </Link>
 
               <Link href="/cart" className="relative p-2 group">
-                <ShoppingCart className="h-[18px] w-[18px] text-gray-600 group-hover:text-[#4b0f1a] transition-colors" />
+                <ShoppingCart className="h-[20px] w-[20px] text-gray-600 group-hover:text-[#4b0f1a] transition-colors" />
                 {totalItems > 0 && (
                   <span className="absolute -top-0.5 -right-0.5 bg-[#4b0f1a] text-white text-[9px] font-bold h-4 w-4 flex items-center justify-center rounded-full">
                     {totalItems}

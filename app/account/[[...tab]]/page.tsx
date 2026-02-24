@@ -1,6 +1,6 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useWishlist } from '@/context/WishlistContext';
 import { useCart } from '@/context/CartContext';
@@ -17,16 +17,24 @@ import {
     Loader2, ShieldOff, Camera, X, Check, Star, Phone, Calendar, Mail,
     CheckCircle2, Smartphone, AlertCircle, Eye, ChevronRight,
 } from 'lucide-react';
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import toast from 'react-hot-toast';
 
 type Tab = 'orders' | 'wishlist' | 'addresses' | 'profile';
 
+const VALID_TABS: Tab[] = ['orders', 'wishlist', 'addresses', 'profile'];
+
 export default function AccountPage() {
     const router = useRouter();
+    const params = useParams<{ tab?: string[] }>();
     const { user, isAuthenticated, isLoading, logout } = useAuth();
     const { items: wishlistItems } = useWishlist();
-    const [activeTab, setActiveTab] = useState<Tab>('orders');
+
+    // Derive active tab from URL path segment, default to 'orders'
+    const activeTab: Tab = useMemo(() => {
+        const slug = params?.tab?.[0] as Tab | undefined;
+        return slug && VALID_TABS.includes(slug) ? slug : 'orders';
+    }, [params?.tab]);
 
     // Orders state
     const [orders, setOrders] = useState<Order[]>([]);
@@ -407,7 +415,7 @@ export default function AccountPage() {
                     {tabs.map(tab => (
                         <button
                             key={tab.id}
-                            onClick={() => setActiveTab(tab.id)}
+                            onClick={() => router.push(`/account/${tab.id}`)}
                             className={`flex items-center gap-2 whitespace-nowrap border-b-2 px-5 py-3 text-sm font-medium transition-colors ${activeTab === tab.id
                                 ? 'border-burgundy text-burgundy'
                                 : 'border-transparent text-warm-gray hover:text-charcoal'

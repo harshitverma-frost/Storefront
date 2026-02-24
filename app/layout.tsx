@@ -8,6 +8,7 @@ import AgeVerificationModal from "@/components/AgeVerificationModal";
 import { CartProvider } from "@/context/CartContext";
 import { WishlistProvider } from "@/context/WishlistContext";
 import { AuthProvider } from "@/context/AuthContext";
+import { ClerkProvider } from "@clerk/nextjs";
 import { Toaster } from "react-hot-toast";
 
 const playfair = Playfair_Display({
@@ -37,34 +38,36 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${playfair.variable} ${inter.variable}`}>
       <body className="min-h-screen flex flex-col">
-        <Script
-          src="https://challenges.cloudflare.com/turnstile/v0/api.js"
-          strategy="afterInteractive"
-        />
-        <AuthProvider>
-          <CartProvider>
-            <WishlistProvider>
-              <Toaster
-                position="bottom-right"
-                toastOptions={{
-                  style: {
-                    background: '#2D2926',
-                    color: '#FAF7F2',
-                    borderRadius: '12px',
-                    fontSize: '14px',
-                  },
-                  success: {
-                    iconTheme: { primary: '#722F37', secondary: '#FAF7F2' },
-                  },
-                }}
-              />
-              <AgeVerificationModal />
-              <Navbar />
-              <main className="flex-1">{children}</main>
-              <Footer />
-            </WishlistProvider>
-          </CartProvider>
-        </AuthProvider>
+        <ClerkProvider>
+          <Script
+            src="https://challenges.cloudflare.com/turnstile/v0/api.js"
+            strategy="afterInteractive"
+          />
+          <AuthProvider>
+            <CartProvider>
+              <WishlistProvider>
+                <Toaster
+                  position="bottom-right"
+                  toastOptions={{
+                    style: {
+                      background: '#2D2926',
+                      color: '#FAF7F2',
+                      borderRadius: '12px',
+                      fontSize: '14px',
+                    },
+                    success: {
+                      iconTheme: { primary: '#722F37', secondary: '#FAF7F2' },
+                    },
+                  }}
+                />
+                <AgeVerificationModal />
+                <Navbar />
+                <main className="flex-1">{children}</main>
+                <Footer />
+              </WishlistProvider>
+            </CartProvider>
+          </AuthProvider>
+        </ClerkProvider>
       </body>
     </html>
   );
