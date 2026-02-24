@@ -82,7 +82,7 @@ export default function AccountPage() {
 
     // Body scroll lock for modals
     useEffect(() => {
-        if (selectedOrderDetails || isTrackOrderModalOpen || showAddressForm || showDeactivateModal || deletingAddressId) {
+        if (selectedOrderDetails || isTrackOrderModalOpen || showDeactivateModal || deletingAddressId) {
             document.body.style.overflow = 'hidden';
         } else {
             document.body.style.overflow = 'unset';
@@ -90,7 +90,7 @@ export default function AccountPage() {
         return () => {
             document.body.style.overflow = 'unset';
         };
-    }, [selectedOrderDetails, isTrackOrderModalOpen, showAddressForm, showDeactivateModal, deletingAddressId]);
+    }, [selectedOrderDetails, isTrackOrderModalOpen, showDeactivateModal, deletingAddressId]);
 
     useEffect(() => {
         if (!isLoading && !isAuthenticated) {

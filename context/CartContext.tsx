@@ -34,6 +34,7 @@ function flattenCartItem(item: BackendCartItem): BackendCartItem {
         product_name: item.product?.product_name || item.product_name || 'Product',
         price: item.pricing?.effective_price ?? item.pricing?.unit_price ?? item.price ?? 0,
         size_label: item.variant?.size_label || item.size_label || '',
+        image_url: (item.product as any)?.thumbnail_url || item.image_url || '',
     };
 }
 
