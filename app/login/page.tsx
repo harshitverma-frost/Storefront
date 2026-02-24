@@ -5,8 +5,9 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
-import { createCart } from '@/lib/api'; // ✅ import cart API
+import { createCart } from '@/lib/api';
 import { ShieldCheck, User, Eye, Wine } from 'lucide-react';
+import SocialLoginButtons from '@/components/SocialLoginButtons';
 
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? 'YOUR_SITE_KEY';
 const ADMIN_URL = process.env.NEXT_PUBLIC_ADMIN_URL || 'http://localhost:4000';
@@ -309,7 +310,6 @@ function LoginContent() {
                         onSubmit={handleSubmit}
                         className="rounded-2xl border border-light-border bg-white p-8 shadow-sm"
                     >
-                        {/* Admin mode badge */}
                         {loginMode === 'admin' && (
                             <div className="flex items-center gap-2 mb-5 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200">
                                 <ShieldCheck className="w-4 h-4 text-amber-600" />
@@ -317,6 +317,21 @@ function LoginContent() {
                                     Admin credentials required
                                 </span>
                             </div>
+                        )}
+
+                        {/* ── Social Login Buttons (customer mode only) ── */}
+                        {loginMode === 'customer' && !isRegister && (
+                            <>
+                                <SocialLoginButtons disabled={loading} />
+                                <div className="relative my-6">
+                                    <div className="absolute inset-0 flex items-center">
+                                        <div className="w-full border-t border-light-border" />
+                                    </div>
+                                    <div className="relative flex justify-center text-xs">
+                                        <span className="bg-white px-4 text-warm-gray font-medium">or sign in with email</span>
+                                    </div>
+                                </div>
+                            </>
                         )}
 
                         {isRegister && loginMode === 'customer' && (

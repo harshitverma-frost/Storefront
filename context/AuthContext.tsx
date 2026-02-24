@@ -9,6 +9,7 @@ interface AuthContextType {
     isLoading: boolean;
     login: (email: string, password: string) => Promise<{ success: boolean; error?: string; code?: string; role?: string; access_token?: string }>;
     register: (name: string, email: string, password: string) => Promise<RegisterResponse>;
+    socialLogin: (clerkToken: string) => Promise<{ success: boolean; error?: string; is_new_user?: boolean; account_linked?: boolean; pending_verification?: boolean; customer_id?: string; email?: string; full_name?: string }>;
     logout: () => void;
     verifyUserAge: (dateOfBirth: string) => Promise<{ success: boolean; error?: string }>;
     /** Register callbacks that run after login/logout so Cart + Wishlist can react */
@@ -32,6 +33,8 @@ interface UserInfo {
     name: string;
     email: string;
     role?: string;
+    avatar_url?: string;
+    auth_method?: string;
     is_age_verified?: boolean;
     is_email_verified?: boolean;
     is_mobile_verified?: boolean;
@@ -49,6 +52,8 @@ function toUserInfo(customer: Record<string, unknown>): UserInfo {
         name: (customer.full_name ?? customer.name ?? '') as string,
         email: (customer.email ?? '') as string,
         role: (customer.role as string) || 'customer',
+        avatar_url: (customer.avatar_url as string) || undefined,
+        auth_method: (customer.auth_method as string) || undefined,
         is_age_verified: !!(customer.is_age_verified),
         is_email_verified: !!(customer.is_email_verified),
         is_mobile_verified: !!(customer.is_mobile_verified),
@@ -159,6 +164,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         notifyListeners('logout', null);
     }, [notifyListeners]);
 
+    /** Social login via Clerk token → backend JWT (or pending OTP for new users) */
+    const socialLogin = useCallback(async (clerkToken: string) => {
+        try {
+            const res = await fetch(`${API_URL}/api/auth/social/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ clerk_token: clerkToken }),
+            });
+            const json = await res.json();
+
+            // New user → pending OTP verification (no JWT yet)
+            if (res.ok && json.success && json.pending_verification) {
+                return {
+                    success: true,
+                    pending_verification: true,
+                    customer_id: json.data.customer_id,
+                    email: json.data.email,
+                    full_name: json.data.full_name,
+                };
+            }
+
+            // Returning user → JWT issued immediately
+            if (res.ok && json.success && json.data?.customer) {
+                const u = toUserInfo(json.data.customer);
+                setUser(u);
+                localStorage.setItem(USER_KEY, JSON.stringify(u));
+                if (json.data.access_token) {
+                    localStorage.setItem(TOKEN_KEY, json.data.access_token);
+                }
+                notifyListeners('login', u);
+                return {
+                    success: true,
+                    is_new_user: json.data.is_new_user,
+                    account_linked: json.data.account_linked,
+                };
+            }
+            return { success: false, error: json.message || 'Social login failed' };
+        } catch (err) {
+            console.error('[Auth] Social login error:', err);
+            return { success: false, error: 'Social login failed. Please try again.' };
+        }
+    }, [notifyListeners]);
+
     const verifyUserAge = useCallback(async (dateOfBirth: string) => {
         if (!user?.id) return { success: false, error: "User not logged in" };
         try {
@@ -183,7 +232,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return (
         <AuthContext.Provider value={{
             user, isAuthenticated: !!user, isLoading,
-            login, register, logout, verifyUserAge, onAuthChange,
+            login, register, socialLogin, logout, verifyUserAge, onAuthChange,
         }}>
             {children}
         </AuthContext.Provider>
