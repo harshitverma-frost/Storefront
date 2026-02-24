@@ -9,13 +9,13 @@ import {
     getMyOrders, getAddresses, addAddress as apiAddAddress,
     updateAddress as apiUpdateAddress, deleteAddress as apiDeleteAddress,
     getCustomerProfile, updateCustomerProfile, deactivateAccount,
-    uploadProfileImage, getProfileImage, removeProfileImage,
+    uploadProfileImage, getProfileImage, removeProfileImage, getOrderById,
 } from '@/lib/api';
 import { Order, Address } from '@/types';
 import {
     Package, MapPin, Heart, LogOut, User, Plus, Pencil, Trash2,
     Loader2, ShieldOff, Camera, X, Check, Star, Phone, Calendar, Mail,
-    CheckCircle2, Smartphone, AlertCircle,
+    CheckCircle2, Smartphone, AlertCircle, Eye, ChevronRight,
 } from 'lucide-react';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import toast from 'react-hot-toast';
@@ -31,6 +31,14 @@ export default function AccountPage() {
     // Orders state
     const [orders, setOrders] = useState<Order[]>([]);
     const [ordersLoading, setOrdersLoading] = useState(false);
+    const [selectedOrderDetails, setSelectedOrderDetails] = useState<any | null>(null);
+    const [isOrderLoading, setIsOrderLoading] = useState(false);
+    const [isTrackOrderModalOpen, setIsTrackOrderModalOpen] = useState(false);
+    const [trackOrderId, setTrackOrderId] = useState<string | null>(null);
+
+    // Profile Edit State
+    const [isEditingProfile, setIsEditingProfile] = useState(false);
+    const [editForm, setEditForm] = useState({ full_name: '', phone: '', date_of_birth: '' });
 
     // Addresses state
     const [addresses, setAddresses] = useState<Address[]>([]);
@@ -63,6 +71,18 @@ export default function AccountPage() {
 
     // Delete address confirmation
     const [deletingAddressId, setDeletingAddressId] = useState<string | null>(null);
+
+    // Body scroll lock for modals
+    useEffect(() => {
+        if (selectedOrderDetails || isTrackOrderModalOpen || showAddressForm || showDeactivateModal || deletingAddressId) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = 'unset';
+        }
+        return () => {
+            document.body.style.overflow = 'unset';
+        };
+    }, [selectedOrderDetails, isTrackOrderModalOpen, showAddressForm, showDeactivateModal, deletingAddressId]);
 
     useEffect(() => {
         if (!isLoading && !isAuthenticated) {
@@ -311,6 +331,28 @@ export default function AccountPage() {
         });
     };
 
+    const handleViewOrderDetails = async (orderId: string) => {
+        setIsOrderLoading(true);
+        try {
+            const res = await getOrderById(orderId);
+            if (res.success && res.data) {
+                setSelectedOrderDetails(res.data);
+            } else {
+                toast.error('Failed to load order details');
+            }
+        } catch (error) {
+            console.error('Error fetching order details:', error);
+            toast.error('Failed to load order details due to a server error.');
+        } finally {
+            setIsOrderLoading(false);
+        }
+    };
+
+    const handleTrackOrder = (orderId: string) => {
+        setTrackOrderId(orderId);
+        setIsTrackOrderModalOpen(true);
+    };
+
     if (isLoading) {
         return (
             <div className="min-h-screen bg-cream flex items-center justify-center">
@@ -398,34 +440,80 @@ export default function AccountPage() {
                         ) : (
                             <div className="space-y-4">
                                 {orders.map(order => (
-                                    <div key={order.order_id} className="rounded-xl border border-light-border bg-white p-6">
-                                        <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-                                            <div>
-                                                <p className="font-mono text-sm font-semibold text-charcoal">{order.order_id}</p>
-                                                <p className="text-xs text-warm-gray">{new Date(order.created_at).toLocaleDateString('en-US')}</p>
+                                    <div key={order.order_id} className="rounded-xl border border-light-border bg-white p-6 shadow-sm hover:shadow-md transition-shadow">
+                                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+
+                                            {/* Left Section: Order Info & Status */}
+                                            <div className="space-y-3">
+                                                <div className="flex items-center gap-2">
+                                                    <Package className="h-5 w-5 text-warm-gray" />
+                                                    <span className="font-serif text-lg font-bold text-charcoal">
+                                                        Order #{order.order_id.split('-')[0].toUpperCase()}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center gap-2 text-sm text-warm-gray">
+                                                    <Calendar className="h-4 w-4" />
+                                                    {new Date(order.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                                </div>
+                                                <div className="flex items-center gap-2 text-sm font-medium">
+                                                    <span className="flex items-center gap-1.5 text-charcoal">
+                                                        <span className={`h-2.5 w-2.5 rounded-full ${order.order_status === 'DELIVERED' ? 'bg-purple-500' : order.order_status === 'SHIPPED' ? 'bg-blue-500' : order.order_status === 'CONFIRMED' ? 'bg-green-500' : 'bg-yellow-500'}`}></span>
+                                                        {order.order_status}
+                                                    </span>
+                                                    <span className="text-warm-gray/40">|</span>
+                                                    <span className="flex items-center gap-1.5 text-charcoal">
+                                                        <span className={`h-2.5 w-2.5 rounded-full ${order.payment_status?.toLowerCase() === 'paid' ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                                                        {order.payment_status || 'UNPAID'}
+                                                    </span>
+                                                </div>
                                             </div>
-                                            <div className="flex gap-2">
-                                                <span className={`rounded-full px-3 py-1 text-xs font-semibold ${getStatusColor(order.order_status)}`}>
-                                                    {order.order_status}
-                                                </span>
-                                                <span className={`rounded-full px-3 py-1 text-xs font-semibold ${order.payment_status?.toLowerCase() === 'paid' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
-                                                    {order.payment_status || 'Unpaid'}
-                                                </span>
-                                            </div>
-                                        </div>
-                                        {order.items && order.items.length > 0 && (
-                                            <div className="space-y-2 border-t border-light-border pt-3">
-                                                {order.items.map((item, i) => (
-                                                    <div key={i} className="flex items-center justify-between text-sm">
-                                                        <span className="text-charcoal">{item.product_name || 'Product'} × {item.quantity}</span>
-                                                        <span className="text-warm-gray">${(item.unit_price * item.quantity).toLocaleString('en-US')}</span>
+
+                                            {/* Middle Section: Product Preview */}
+                                            <div className="flex-1 md:border-l md:border-r border-light-border md:px-6 py-2">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="h-16 w-16 rounded-lg border border-light-border overflow-hidden bg-cream flex-shrink-0">
+                                                        {order.first_item?.thumbnail_url ? (
+                                                            // eslint-disable-next-line @next/next/no-img-element
+                                                            <img src={order.first_item.thumbnail_url} alt="Product" className="h-full w-full object-cover" />
+                                                        ) : (
+                                                            <div className="h-full w-full flex items-center justify-center text-warm-gray">
+                                                                <Package className="h-6 w-6" />
+                                                            </div>
+                                                        )}
                                                     </div>
-                                                ))}
+                                                    <div>
+                                                        <p className="font-medium text-charcoal line-clamp-2 text-sm">
+                                                            {order.first_item?.product_name || 'Product'}
+                                                        </p>
+                                                        {Number(order.item_count) > 1 && (
+                                                            <p className="text-sm text-burgundy font-medium mt-1">
+                                                                +{Number(order.item_count) - 1} more order items
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                </div>
                                             </div>
-                                        )}
-                                        <div className="mt-3 border-t border-light-border pt-3 flex justify-between">
-                                            <span className="font-serif text-sm font-semibold text-burgundy">Total</span>
-                                            <span className="font-serif text-sm font-bold text-burgundy">${order.total_amount?.toLocaleString('en-US')}</span>
+
+                                            {/* Right Section: Total & Actions */}
+                                            <div className="flex flex-col items-start md:items-end justify-between space-y-4">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-charcoal flex items-center gap-1.5 font-bold font-serif text-lg">
+                                                        <span className="text-xl">💰</span> Total: ${parseFloat(order.total_amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                                    </span>
+                                                </div>
+
+                                                <div className="flex flex-wrap gap-2">
+                                                    <button onClick={() => handleTrackOrder(order.order_id)} className="rounded-lg border border-light-border px-4 py-2 text-sm font-semibold text-charcoal hover:bg-cream transition-colors">
+                                                        Track Order
+                                                    </button>
+                                                    <button onClick={() => handleViewOrderDetails(order.order_id)} className="rounded-lg border border-light-border px-4 py-2 text-sm font-semibold text-charcoal hover:bg-cream transition-colors">
+                                                        {isOrderLoading && selectedOrderDetails?.order_id === order.order_id ? <Loader2 className="h-4 w-4 animate-spin inline-block" /> : 'View Details'}
+                                                    </button>
+                                                    <button disabled className="rounded-lg bg-burgundy/50 px-4 py-2 text-sm font-semibold text-white/70 cursor-not-allowed">
+                                                        Pay Now
+                                                    </button>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 ))}
@@ -994,6 +1082,117 @@ export default function AccountPage() {
                                     Delete
                                 </button>
                             </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* ═══ Order Details Modal ═══ */}
+                {selectedOrderDetails && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center px-4 p-4 sm:p-0" style={{ animation: 'fadeIn 0.2s ease-out' }}>
+                        <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setSelectedOrderDetails(null)} />
+                        <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl border border-light-border" style={{ animation: 'slideUp 0.25s ease-out' }}>
+                            <div className="flex justify-between items-center mb-6">
+                                <h3 className="font-serif text-xl font-bold text-charcoal">Order Details</h3>
+                                <button onClick={() => setSelectedOrderDetails(null)} className="rounded-full p-2 hover:bg-cream transition-colors text-warm-gray">
+                                    <X className="h-5 w-5" />
+                                </button>
+                            </div>
+
+                            <div className="space-y-6">
+                                {/* Order Info */}
+                                <div className="grid grid-cols-2 gap-4 bg-cream p-4 rounded-xl text-sm">
+                                    <div>
+                                        <p className="text-warm-gray mb-1">Order ID</p>
+                                        <p className="font-mono font-medium text-charcoal text-xs break-all">{selectedOrderDetails.order_id}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-warm-gray mb-1">Date</p>
+                                        <p className="font-medium text-charcoal">{new Date(selectedOrderDetails.created_at).toLocaleString()}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-warm-gray mb-1">Order Status</p>
+                                        <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${getStatusColor(selectedOrderDetails.order_status)}`}>
+                                            {selectedOrderDetails.order_status}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <p className="text-warm-gray mb-1">Payment Status</p>
+                                        <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${selectedOrderDetails.payment_status?.toLowerCase() === 'paid' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                            {selectedOrderDetails.payment_status || 'UNPAID'}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* Items List */}
+                                <div>
+                                    <h4 className="font-serif text-lg font-bold text-charcoal mb-4">Items</h4>
+                                    <div className="space-y-3">
+                                        {selectedOrderDetails.items?.map((item: any) => (
+                                            <div key={item.order_item_id} className="flex gap-4 p-3 border border-light-border rounded-xl hover:border-burgundy/30 transition-colors">
+                                                <div className="h-16 w-16 bg-cream rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden border border-light-border">
+                                                    {item.thumbnail_url ? (
+                                                        // eslint-disable-next-line @next/next/no-img-element
+                                                        <img src={item.thumbnail_url} alt="Product" className="h-full w-full object-cover" />
+                                                    ) : (
+                                                        <Package className="h-6 w-6 text-warm-gray" />
+                                                    )}
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="font-medium text-charcoal truncate">{item.product?.product_name || 'Product'}</p>
+                                                    <p className="text-xs text-warm-gray mt-1">Brand: {item.product?.brand || 'N/A'} | Size: {item.variant?.size_label || 'N/A'}</p>
+                                                    <div className="flex justify-between items-center mt-2">
+                                                        <p className="text-sm font-medium text-charcoal">Qty: {item.quantity}</p>
+                                                        <p className="text-sm font-bold text-burgundy">${parseFloat(item.line_total || (item.unit_price * item.quantity + item.tax_amount)).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Summary */}
+                                <div className="border-t border-light-border pt-4 space-y-2 text-sm">
+                                    <div className="flex justify-between text-warm-gray">
+                                        <span>Subtotal</span>
+                                        <span>${parseFloat(selectedOrderDetails.total_amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                                    </div>
+                                    <div className="flex justify-between text-warm-gray">
+                                        <span>Tax</span>
+                                        <span>${parseFloat(selectedOrderDetails.total_tax).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                                    </div>
+                                    <div className="flex justify-between font-bold text-charcoal text-base mt-2 pt-2 border-t border-light-border">
+                                        <span>Grand Total</span>
+                                        <span className="text-burgundy">${(parseFloat(selectedOrderDetails.total_amount) + parseFloat(selectedOrderDetails.total_tax)).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* ═══ Track Order Modal ═══ */}
+                {isTrackOrderModalOpen && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ animation: 'fadeIn 0.2s ease-out' }}>
+                        <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setIsTrackOrderModalOpen(false)} />
+                        <div className="relative w-full max-w-md rounded-2xl bg-white p-8 shadow-2xl border border-light-border text-center" style={{ animation: 'slideUp 0.25s ease-out' }}>
+                            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-cream">
+                                <Package className="h-8 w-8 text-burgundy" />
+                            </div>
+                            <h3 className="font-serif text-2xl font-bold text-charcoal mb-2">Track Order</h3>
+                            <p className="font-mono text-sm font-semibold text-warm-gray mb-4">#{trackOrderId?.split('-')[0].toUpperCase()}</p>
+                            <div className="bg-light-border/30 rounded-xl p-4 mb-6 relative overflow-hidden">
+                                <div className="absolute top-0 left-0 w-1 h-full bg-burgundy"></div>
+                                <p className="text-charcoal text-sm leading-relaxed font-medium">
+                                    We will integrate with a third-party application for real-time tracking in the future. Check back soon!
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => setIsTrackOrderModalOpen(false)}
+                                className="w-full rounded-xl py-3 text-sm font-semibold text-white transition-all shadow-md hover:shadow-lg hover:opacity-90"
+                                style={{ backgroundColor: '#6B2737' }}
+                            >
+                                Close
+                            </button>
                         </div>
                     </div>
                 )}

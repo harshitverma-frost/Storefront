@@ -447,6 +447,16 @@ export async function getMyOrders(customerId: string) {
     }
 }
 
+export async function getOrderById(orderId: string) {
+    try {
+        const res = await authFetch(`${API_URL}/api/orders/${orderId}`);
+        return res.json();
+    } catch (error) {
+        console.warn('[API] getOrderById failed:', error);
+        return { success: false, data: null };
+    }
+}
+
 /* ─── Customers ─── */
 
 export async function getCustomerProfile(id: string) {
