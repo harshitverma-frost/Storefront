@@ -3,14 +3,14 @@
 import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { sendVerificationEmail, verifyEmail } from '@/lib/api';
+import { sendVerificationEmail, verifyEmail, createCart } from '@/lib/api';
 import { Mail, Loader2, CheckCircle2, XCircle, ArrowLeft, RefreshCw, Eye } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 function VerifyEmailContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+    const { user, isAuthenticated, isLoading: authLoading, loginFromVerification } = useAuth();
 
     const isFromRegistration = searchParams.get('registered') === 'true';
     const emailFromUrl = searchParams.get('email');
@@ -111,8 +111,27 @@ function VerifyEmailContent() {
             const res = await verifyEmail(code, emailToUse || undefined);
             if (res.success) {
                 setStatus('success');
-                toast.success('Email verified successfully! Please log in.');
-                setTimeout(() => router.push('/login'), 2000);
+
+                // Check if this was a new account creation (deferred registration)
+                if (res.data?.account_created && res.data?.customer) {
+                    // Log in the user via AuthContext
+                    loginFromVerification(res.data.customer, res.data.access_token);
+
+                    // Create cart for the new user
+                    try {
+                        await createCart(res.data.customer.customer_id);
+                        console.log('✅ Cart created for:', res.data.customer.customer_id);
+                    } catch (cartErr) {
+                        console.warn('⚠️ Cart creation failed:', cartErr);
+                    }
+
+                    toast.success('Account created & verified! Welcome!');
+                    setTimeout(() => router.push('/account'), 2000);
+                } else {
+                    // Existing user just verifying email
+                    toast.success('Email verified successfully!');
+                    setTimeout(() => router.push('/account'), 2000);
+                }
             } else {
                 setStatus('error');
                 setErrorMessage(res.message || 'Invalid verification code');

@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
-import { createCart } from '@/lib/api';
 import { ShieldCheck, User, Eye, Wine } from 'lucide-react';
 import SocialLoginButtons from '@/components/SocialLoginButtons';
 
@@ -150,18 +149,11 @@ function LoginContent() {
 
         try {
             if (isRegister) {
-                // Register user
+                // Initiate registration (deferred — no account created yet, just pending)
                 const result = await register(form.name, form.email, form.password);
 
                 if (result?.success) {
-                    const customerId = result.customer?.customer_id;
-                    if (customerId) {
-                        await createCart(customerId);
-                        console.log("✅ Cart created for:", customerId);
-                    } else {
-                        console.warn("⚠️ customer_id missing from register response");
-                    }
-                    toast.success('Account created! Please verify your email.');
+                    toast.success('Please verify your email to complete registration.');
                     setIsRedirecting(true);
                     // Add artificial delay to extend loader screen viewing as requested
                     setTimeout(() => {

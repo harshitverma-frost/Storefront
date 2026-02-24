@@ -9,6 +9,8 @@ interface AuthContextType {
     isLoading: boolean;
     login: (email: string, password: string) => Promise<{ success: boolean; error?: string; code?: string; role?: string; access_token?: string }>;
     register: (name: string, email: string, password: string) => Promise<RegisterResponse>;
+    /** Log in the user directly from verification data (after OTP verified and account created) */
+    loginFromVerification: (customerData: Record<string, unknown>, accessToken: string) => void;
     socialLogin: (clerkToken: string) => Promise<{ success: boolean; error?: string; is_new_user?: boolean; account_linked?: boolean; pending_verification?: boolean; customer_id?: string; email?: string; full_name?: string }>;
     logout: () => void;
     verifyUserAge: (dateOfBirth: string) => Promise<{ success: boolean; error?: string }>;
@@ -20,11 +22,8 @@ type AuthChangeCallback = (event: 'login' | 'logout', user: UserInfo | null) => 
 
 interface RegisterResponse {
     success: boolean;
-    customer?: {
-        customer_id: string;
-        full_name: string;
-        email: string;
-    };
+    email?: string;
+    requires_verification?: boolean;
     error?: string;
 }
 
@@ -137,16 +136,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         password: string
     ): Promise<RegisterResponse> => {
         try {
-            const res = await fetch(`${API_URL}/api/auth/register`, {
+            const res = await fetch(`${API_URL}/api/auth/initiate-registration`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
                 body: JSON.stringify({ full_name: name, email, password }),
             });
             const json = await res.json();
-            if (res.ok && json.success && json.data?.customer) {
-                const customer = json.data.customer;
-                return { success: true, customer };
+            if (res.ok && json.success) {
+                return {
+                    success: true,
+                    email: json.data?.email || email,
+                    requires_verification: true,
+                };
             }
             if (json.message) return { success: false, error: json.message };
         } catch (err) {
@@ -154,6 +156,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         return { success: false, error: 'Registration failed. Please try again.' };
+    }, []);
+
+    /** Log in the user from verification page data (after OTP created the account) */
+    const loginFromVerification = useCallback((customerData: Record<string, unknown>, accessToken: string) => {
+        const u = toUserInfo(customerData);
+        setUser(u);
+        localStorage.setItem(USER_KEY, JSON.stringify(u));
+        localStorage.setItem(TOKEN_KEY, accessToken);
+        notifyListeners('login', u);
     }, [notifyListeners]);
 
     const logout = useCallback(() => {
@@ -232,7 +243,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return (
         <AuthContext.Provider value={{
             user, isAuthenticated: !!user, isLoading,
-            login, register, socialLogin, logout, verifyUserAge, onAuthChange,
+            login, register, loginFromVerification, socialLogin, logout, verifyUserAge, onAuthChange,
         }}>
             {children}
         </AuthContext.Provider>
