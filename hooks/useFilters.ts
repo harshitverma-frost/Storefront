@@ -25,7 +25,7 @@ const DEFAULTS: FilterState = {
     country: '',
     ratings: [],
     priceRange: [0, 500],
-    alcoholRange: [0, 60],
+    alcoholRange: [0, 100],
     inStock: false,
     bestSellers: false,
     newArrivals: false,
@@ -137,7 +137,7 @@ export function useFilters() {
             chips.push({ key: 'price', label: 'Price', value: `$${filters.priceRange[0]} – $${filters.priceRange[1]}` });
         }
         const alcConfig = FILTER_CONFIGS.find(f => f.key === 'alcohol');
-        if (filters.alcoholRange[0] !== (alcConfig?.min ?? 0) || filters.alcoholRange[1] !== (alcConfig?.max ?? 60)) {
+        if (filters.alcoholRange[0] !== (alcConfig?.min ?? 0) || filters.alcoholRange[1] !== (alcConfig?.max ?? 100)) {
             chips.push({ key: 'alcohol', label: 'Alcohol', value: `${filters.alcoholRange[0]}% – ${filters.alcoholRange[1]}%` });
         }
         if (filters.inStock) chips.push({ key: 'inStock', label: 'Status', value: 'In Stock' });

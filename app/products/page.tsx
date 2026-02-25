@@ -111,7 +111,7 @@ function ProductsContent() {
 
             // Alcohol % range
             const aMin = alcConfig?.min ?? 0;
-            const aMax = alcConfig?.max ?? 60;
+            const aMax = alcConfig?.max ?? 100;
             if (filters.alcoholRange[0] !== aMin) params.min_abv = filters.alcoholRange[0];
             if (filters.alcoholRange[1] !== aMax) params.max_abv = filters.alcoholRange[1];
 
@@ -200,7 +200,7 @@ function ProductsContent() {
             <FilterSection title="Alcohol %" defaultOpen={false}>
                 <RangeSlider
                     min={FILTER_CONFIGS.find(f => f.key === 'alcohol')?.min ?? 0}
-                    max={FILTER_CONFIGS.find(f => f.key === 'alcohol')?.max ?? 60}
+                    max={FILTER_CONFIGS.find(f => f.key === 'alcohol')?.max ?? 100}
                     step={FILTER_CONFIGS.find(f => f.key === 'alcohol')?.step ?? 1}
                     value={filters.alcoholRange}
                     onChange={setAlcoholRange}

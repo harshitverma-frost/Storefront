@@ -47,10 +47,10 @@ export const FILTER_CONFIGS: FilterConfig[] = [
         type: 'range',
         urlParam: 'alcohol',
         min: 0,
-        max: 60,
+        max: 100,
         step: 1,
         formatLabel: (v: number) => `${v}%`,
-        defaultValue: [0, 60],
+        defaultValue: [0, 100],
     },
     {
         key: 'country',

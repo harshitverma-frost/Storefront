@@ -8,7 +8,7 @@ import { useCart } from '@/context/CartContext';
 import { useWishlist } from '@/context/WishlistContext';
 import ProductCard from '@/components/ProductCard';
 import { SkeletonLine } from '@/components/Skeleton';
-import { Heart, ShoppingCart, Minus, Plus, Star, Truck, RotateCcw, ChevronRight } from 'lucide-react';
+import { Heart, ShoppingCart, Minus, Plus, Star, Truck, RotateCcw, ChevronRight, AlertTriangle } from 'lucide-react';
 import ReviewSection from '@/components/reviews/ReviewSection';
 import toast from 'react-hot-toast';
 
@@ -88,6 +88,11 @@ export default function ProductDetailPage({ params }: Props) {
         product.price ??
         Math.floor(Math.random() * 500000 + 100000);
 
+    // Stock availability
+    const stockQty = selectedVariant?.stock_quantity ?? product.stock_quantity ?? null;
+    const isOutOfStock = stockQty !== null && stockQty <= 0;
+    const maxQty = stockQty !== null && stockQty > 0 ? stockQty : 99;
+
     const images = product.assets
         ?.map(a => a.base64_data || a.asset_url)
         .filter(Boolean) as string[] || [];
@@ -159,7 +164,10 @@ export default function ProductDetailPage({ params }: Props) {
                             <span className="flex items-center gap-1.5">
                                 <span className="text-warm-gray/60 font-medium">Alcohol:</span>
                                 <span className="text-burgundy/80 font-semibold">
-                                    {product.alcohol_percentage != null ? `${product.alcohol_percentage}% ABV` : '—'}
+                                    {(() => {
+                                        const abv = product.alcohol_percentage ?? selectedVariant?.alcohol_percentage ?? null;
+                                        return abv != null ? `${abv}% ABV` : '—';
+                                    })()}
                                 </span>
                             </span>
                             {product.unit_of_measure && (
@@ -198,30 +206,49 @@ export default function ProductDetailPage({ params }: Props) {
                                     ))}
                                 </div>
 
-                                <p className="text-xs text-warm-gray mt-2">
-                                    Stock: {selectedVariant?.stock_quantity}
-                                </p>
+                            </div>
+                        )}
+
+                        {/* STOCK AVAILABILITY BADGE */}
+                        {stockQty !== null && (
+                            <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${isOutOfStock
+                                ? 'bg-red-50 text-red-600 border border-red-200'
+                                : stockQty <= 5
+                                    ? 'bg-amber-50 text-amber-600 border border-amber-200'
+                                    : 'bg-emerald-50 text-emerald-600 border border-emerald-200'
+                                }`}>
+                                {isOutOfStock ? (
+                                    <><AlertTriangle size={12} /> Out of Stock</>
+                                ) : stockQty <= 5 ? (
+                                    <><AlertTriangle size={12} /> Only {stockQty} left</>
+                                ) : (
+                                    <>✓ In Stock</>
+                                )}
                             </div>
                         )}
 
                         {/* QUANTITY + CART */}
                         <div className="flex gap-4">
                             <div className="flex border rounded-lg">
-                                <button onClick={() => setQuantity(q => Math.max(1, q - 1))} className="px-3">
+                                <button onClick={() => setQuantity(q => Math.max(1, q - 1))} className="px-3" disabled={isOutOfStock}>
                                     <Minus size={16} />
                                 </button>
                                 <span className="px-4 py-2">{quantity}</span>
-                                <button onClick={() => setQuantity(q => q + 1)} className="px-3">
+                                <button onClick={() => setQuantity(q => Math.min(maxQty, q + 1))} className="px-3" disabled={isOutOfStock || quantity >= maxQty}>
                                     <Plus size={16} />
                                 </button>
                             </div>
 
                             <button
                                 onClick={handleAddToCart}
-                                className="flex-1 bg-burgundy text-white rounded-lg py-3 flex justify-center items-center gap-2"
+                                disabled={isOutOfStock}
+                                className={`flex-1 rounded-lg py-3 flex justify-center items-center gap-2 transition-all ${isOutOfStock
+                                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                    : 'bg-burgundy text-white hover:bg-burgundy/90'
+                                    }`}
                             >
                                 <ShoppingCart size={16} />
-                                Add to Cart
+                                {isOutOfStock ? 'Out of Stock' : 'Add to Cart'}
                             </button>
 
                             <button

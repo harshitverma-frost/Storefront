@@ -45,6 +45,7 @@ export interface FilterMeta {
 }
 
 export interface ProductWithDetails extends Product {
+    stock_quantity?: number;
     specifications?: ProductSpecification | null;
     packaging?: ProductPackaging | null;
     variants?: ProductVariant[];
@@ -87,6 +88,10 @@ export interface ProductVariant {
     variant_type?: string;
     variant_value?: string;
     variant_sku?: string;
+    size_label?: string;
+    price?: number;
+    stock_quantity?: number;
+    alcohol_percentage?: number;
     status?: 'Active' | 'Inactive';
 }
 
